@@ -1,0 +1,23 @@
+[package]
+name = "agents-info"
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.96.1"
+description = "Glanceable Agents sidebar: contextual name, model, and context % per Claude pane"
+license = "Apache-2.0"
+
+[[bin]]
+name = "agents-info"
+path = "src/main.rs"
+
+[dependencies]
+clap = { version = "4", features = ["derive"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+toml = "0.8"
+
+[dev-dependencies]
+insta = { version = "1", features = ["json"] }
+
+[profile.release]
+strip = true

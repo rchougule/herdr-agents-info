@@ -1,0 +1,32 @@
+# agents-info plugin config.
+# Copy to $HERDR_PLUGIN_CONFIG_DIR/config.toml. Every field is optional and
+# defaults to the values shown here, so an empty file behaves identically.
+
+[tokens]
+login = "off"        # off | always   ("auto" is reserved for P2 → treated as off)
+model = true         # show the model token ($model)
+
+[thresholds]
+warn = 50            # pct >= warn  → ctx_warn (amber)
+hot  = 80            # pct >= hot   → ctx_hot  (red)
+
+[context_window]
+default = 200000
+auto_promote_1m = true   # if observed usage exceeds `default`, treat window as 1M
+
+[context_window.by_model]
+# Explicit per-model overrides always win over auto-promotion. Uncomment for a
+# model you always run at 1M context:
+# "claude-opus-4-8" = 1000000
+
+[layout]
+# Fixed field->slot layout budgets (layout-design.md §3). herdr never tells the
+# plugin the live sidebar width, so the packer assumes one and derives per-line
+# budgets from it. If your sidebar is wider/narrower than the 26-column default,
+# retune `assumed_width` here — no rebuild needed.
+assumed_width = 26   # assumed sidebar width in columns
+# The two usable budgets default to assumed_width - 2 (line 1) and
+# assumed_width - 4 (lines 2+). Override them directly only if your terminal's
+# indents differ from herdr's defaults:
+# line1_usable = 24
+# other_usable = 22

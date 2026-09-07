@@ -1,0 +1,44 @@
+id = "rchougule.agents-info"
+name = "Agents Info"
+version = "0.1.0"
+min_herdr_version = "0.8.2"
+description = "Glanceable Agents sidebar: contextual name, model, and context % per Claude pane"
+platforms = ["macos", "linux"]
+
+[[build]]
+command = ["cargo", "build", "--release"]
+
+[[startup]]
+command = ["target/release/agents-info", "sweep"]
+
+[[events]]
+on = "pane.agent_status_changed"
+command = ["target/release/agents-info", "enrich"]
+
+[[events]]
+on = "pane.agent_detected"
+command = ["target/release/agents-info", "enrich"]
+
+[[events]]
+on = "pane.created"
+command = ["target/release/agents-info", "enrich"]
+
+[[events]]
+on = "pane.focused"
+command = ["target/release/agents-info", "enrich"]
+
+[[events]]
+on = "pane.closed"
+command = ["target/release/agents-info", "enrich"]
+
+[[actions]]
+id = "sweep"
+title = "Agents Info: refresh all rows"
+contexts = ["workspace"]
+command = ["target/release/agents-info", "sweep"]
+
+[[actions]]
+id = "doctor"
+title = "Agents Info: diagnose (transcript mapping, hook status)"
+contexts = ["workspace"]
+command = ["target/release/agents-info", "doctor"]

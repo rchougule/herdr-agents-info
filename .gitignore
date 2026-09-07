@@ -22,5 +22,9 @@
 *.png
 !docs/qa/**/*.png
 
+# qa/scenario.sh runtime state: created-workspace ids, scratch git repos, and
+# the staged fixture-transcript directory (qa/README.md §2/§4).
+/qa/.state/
+
 # insta snapshot scratch
 *.snap.new

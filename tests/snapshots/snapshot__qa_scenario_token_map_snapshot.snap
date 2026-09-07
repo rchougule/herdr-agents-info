@@ -1,0 +1,466 @@
+---
+source: tests/snapshot.rs
+expression: plans
+---
+[
+  {
+    "pane_id": "ws1:p1",
+    "set": [
+      [
+        "ctx_ok",
+        "5%"
+      ],
+      [
+        "model",
+        "opus"
+      ],
+      [
+        "tab",
+        "flow"
+      ]
+    ],
+    "clear": [
+      "ctx_warn",
+      "ctx_hot",
+      "d2",
+      "pane",
+      "d3",
+      "t1",
+      "t2",
+      "t3",
+      "d1",
+      "mo1",
+      "mo2",
+      "mo3"
+    ],
+    "seq": 1726000000000
+  },
+  {
+    "pane_id": "ws2:p1",
+    "set": [
+      [
+        "ctx_hot",
+        "82%"
+      ],
+      [
+        "model",
+        "opus"
+      ],
+      [
+        "tab",
+        "1"
+      ],
+      [
+        "pane",
+        "vector-search-plan"
+      ]
+    ],
+    "clear": [
+      "ctx_ok",
+      "ctx_warn",
+      "d2",
+      "d3",
+      "t1",
+      "t2",
+      "t3",
+      "d1",
+      "mo1",
+      "mo2",
+      "mo3"
+    ],
+    "seq": 1726000000000
+  },
+  {
+    "pane_id": "ws3:p1",
+    "set": [
+      [
+        "ctx_ok",
+        "12%"
+      ],
+      [
+        "model",
+        "opus"
+      ],
+      [
+        "tab",
+        "dashboard cache check"
+      ]
+    ],
+    "clear": [
+      "ctx_warn",
+      "ctx_hot",
+      "d2",
+      "pane",
+      "d3",
+      "t1",
+      "t2",
+      "t3",
+      "d1",
+      "mo1",
+      "mo2",
+      "mo3"
+    ],
+    "seq": 1726000000000
+  },
+  {
+    "pane_id": "ws4:p1",
+    "set": [
+      [
+        "ctx_ok",
+        "18%"
+      ],
+      [
+        "model",
+        "fable"
+      ],
+      [
+        "tab",
+        "dashboard cache check"
+      ],
+      [
+        "pane",
+        "backend-caching-plan"
+      ]
+    ],
+    "clear": [
+      "ctx_warn",
+      "ctx_hot",
+      "d2",
+      "d3",
+      "t1",
+      "t2",
+      "t3",
+      "d1",
+      "mo1",
+      "mo2",
+      "mo3"
+    ],
+    "seq": 1726000000000
+  },
+  {
+    "pane_id": "ws5:p1",
+    "set": [
+      [
+        "ctx_ok",
+        "12%"
+      ],
+      [
+        "model",
+        "opus"
+      ],
+      [
+        "tab",
+        "k8s"
+      ]
+    ],
+    "clear": [
+      "ctx_warn",
+      "ctx_hot",
+      "d2",
+      "pane",
+      "d3",
+      "t1",
+      "t2",
+      "t3",
+      "d1",
+      "mo1",
+      "mo2",
+      "mo3"
+    ],
+    "seq": 1726000000000
+  },
+  {
+    "pane_id": "ws6:p1",
+    "set": [
+      [
+        "ctx_ok",
+        "34%"
+      ],
+      [
+        "model",
+        "opus"
+      ],
+      [
+        "tab",
+        "last enriched at fixes"
+      ]
+    ],
+    "clear": [
+      "ctx_warn",
+      "ctx_hot",
+      "d2",
+      "pane",
+      "d3",
+      "t1",
+      "t2",
+      "t3",
+      "d1",
+      "mo1",
+      "mo2",
+      "mo3"
+    ],
+    "seq": 1726000000000
+  },
+  {
+    "pane_id": "ws7:p1",
+    "set": [
+      [
+        "ctx_ok",
+        "29%"
+      ],
+      [
+        "model",
+        "fable"
+      ],
+      [
+        "tab",
+        "postgres analytics"
+      ]
+    ],
+    "clear": [
+      "ctx_warn",
+      "ctx_hot",
+      "d2",
+      "pane",
+      "d3",
+      "t1",
+      "t2",
+      "t3",
+      "d1",
+      "mo1",
+      "mo2",
+      "mo3"
+    ],
+    "seq": 1726000000000
+  },
+  {
+    "pane_id": "ws8:p1",
+    "set": [
+      [
+        "tab",
+        "remaining lci elephan…"
+      ]
+    ],
+    "clear": [
+      "ctx_ok",
+      "ctx_warn",
+      "ctx_hot",
+      "model",
+      "d2",
+      "pane",
+      "d3",
+      "t1",
+      "t2",
+      "t3",
+      "d1",
+      "mo1",
+      "mo2",
+      "mo3"
+    ],
+    "seq": 1726000000000
+  },
+  {
+    "pane_id": "ws9:p1",
+    "set": [
+      [
+        "ctx_ok",
+        "8%"
+      ],
+      [
+        "model",
+        "opus"
+      ],
+      [
+        "d2",
+        "master"
+      ]
+    ],
+    "clear": [
+      "ctx_warn",
+      "ctx_hot",
+      "tab",
+      "pane",
+      "d3",
+      "t1",
+      "t2",
+      "t3",
+      "d1",
+      "mo1",
+      "mo2",
+      "mo3"
+    ],
+    "seq": 1726000000000
+  },
+  {
+    "pane_id": "wsA:p1",
+    "set": [
+      [
+        "ctx_warn",
+        "77%"
+      ],
+      [
+        "model",
+        "fable"
+      ],
+      [
+        "tab",
+        "1"
+      ]
+    ],
+    "clear": [
+      "ctx_ok",
+      "ctx_hot",
+      "d2",
+      "pane",
+      "d3",
+      "t1",
+      "t2",
+      "t3",
+      "d1",
+      "mo1",
+      "mo2",
+      "mo3"
+    ],
+    "seq": 1726000000000
+  },
+  {
+    "pane_id": "wsB:p1",
+    "set": [
+      [
+        "ctx_ok",
+        "42%"
+      ],
+      [
+        "model",
+        "opus"
+      ],
+      [
+        "tab",
+        "1"
+      ],
+      [
+        "pane",
+        "herdr-agent-info-plug…"
+      ]
+    ],
+    "clear": [
+      "ctx_warn",
+      "ctx_hot",
+      "d2",
+      "d3",
+      "t1",
+      "t2",
+      "t3",
+      "d1",
+      "mo1",
+      "mo2",
+      "mo3"
+    ],
+    "seq": 1726000000000
+  },
+  {
+    "pane_id": "wsC:p4V",
+    "set": [
+      [
+        "ctx_ok",
+        "5%"
+      ],
+      [
+        "model",
+        "opus"
+      ],
+      [
+        "tab",
+        "2"
+      ],
+      [
+        "d2",
+        "p4V"
+      ]
+    ],
+    "clear": [
+      "ctx_warn",
+      "ctx_hot",
+      "pane",
+      "d3",
+      "t1",
+      "t2",
+      "t3",
+      "d1",
+      "mo1",
+      "mo2",
+      "mo3"
+    ],
+    "seq": 1726000000000
+  },
+  {
+    "pane_id": "wsD:p4W",
+    "set": [
+      [
+        "ctx_ok",
+        "4%"
+      ],
+      [
+        "model",
+        "opus"
+      ],
+      [
+        "tab",
+        "2"
+      ],
+      [
+        "d2",
+        "p4W"
+      ]
+    ],
+    "clear": [
+      "ctx_warn",
+      "ctx_hot",
+      "pane",
+      "d3",
+      "t1",
+      "t2",
+      "t3",
+      "d1",
+      "mo1",
+      "mo2",
+      "mo3"
+    ],
+    "seq": 1726000000000
+  },
+  {
+    "pane_id": "wsE:p1",
+    "set": [
+      [
+        "ctx_ok",
+        "26%"
+      ],
+      [
+        "model",
+        "opus"
+      ],
+      [
+        "tab",
+        "1"
+      ],
+      [
+        "pane",
+        "worktree-fix-desktop-…"
+      ]
+    ],
+    "clear": [
+      "ctx_warn",
+      "ctx_hot",
+      "d2",
+      "d3",
+      "t1",
+      "t2",
+      "t3",
+      "d1",
+      "mo1",
+      "mo2",
+      "mo3"
+    ],
+    "seq": 1726000000000
+  }
+]

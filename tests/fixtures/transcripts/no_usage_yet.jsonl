@@ -1,0 +1,2 @@
+{"parentUuid": "0", "isSidechain": false, "type": "user", "uuid": "u", "timestamp": "2026-09-07T12:00:00.000Z", "cwd": "/x", "sessionId": "s", "message": {"role": "user", "content": [{"type": "text", "text": "hello"}]}}
+{"type": "summary", "summary": "redacted", "leafUuid": "x"}
