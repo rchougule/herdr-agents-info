@@ -71,8 +71,8 @@ whole block below**:
 claude = [
   ["state_icon",
     { token = "workspace",  bold = true },
-    { token = "$ctx_ok",    fg = "#a6e3a1" },
-    { token = "$ctx_warn",  fg = "#f9e2af" },
+    { token = "$ctx_ok",    fg = "#a6e3a1", bold = true },
+    { token = "$ctx_warn",  fg = "#f9e2af", bold = true },
     { token = "$ctx_hot",   fg = "#f38ba8", bold = true },
     { token = "$model",     dim = true }],
   [{ token = "$tab",  dim = false }, { token = "$d2", dim = true }],
