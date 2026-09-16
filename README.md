@@ -13,12 +13,15 @@ five identical `dashboard sl…` rows.
   <img src="assets/sidebar.png" width="330" alt="The Agents sidebar with a distinguishing name, model, and context % on every Claude row">
 </p>
 
-For each Claude pane it pushes display-only tokens:
+At a glance, per Claude pane:
 
-- a **contextual name** — the git branch, directory, or pane name that tells two
-  same-workspace panes apart;
-- the **model** (`opus` / `fable` / `sonnet` / …);
-- a color-coded **context %** — green under 50, amber 50–79, red at 80+.
+- a **distinguishing name** — the git branch, directory, pane, or `/rename` title that tells
+  two same-workspace panes apart, tagged `T:` tab · `P:` pane · `A:` agent;
+- the **model** (`opus` / `fable` / `sonnet` / …) and a color-coded **context %**
+  (green → amber → red as it fills);
+- a **disk footprint** that shows up only when a session has grown heavy (throwaway
+  worktrees with their own `node_modules`), so you know which one to clean up;
+- optional per-field **icons** and a between-entry **separator** — all configurable.
 
 Values come from each session's transcript (cached per pane between events). herdr itself is
 never modified, there is no daemon, and non-Claude panes keep herdr's default layout.
