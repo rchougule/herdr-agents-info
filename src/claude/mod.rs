@@ -132,6 +132,17 @@ fn newest_jsonl(dir: &std::path::Path) -> Option<PathBuf> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::sync::Mutex;
+
+    /// Serialises the tests that mutate process-global env (`HOME`,
+    /// `AGENTS_INFO_FIXTURE_DIR`); cargo runs tests in parallel threads, so
+    /// these would otherwise clobber each other's env. Poison-tolerant: a panic
+    /// in one guarded test must not fail the others.
+    static ENV_LOCK: Mutex<()> = Mutex::new(());
+
+    fn env_guard() -> std::sync::MutexGuard<'static, ()> {
+        ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner())
+    }
 
     #[test]
     fn finds_transcript_by_uuid_when_slug_dir_does_not_match() {
@@ -177,11 +188,11 @@ mod tests {
 
     #[test]
     fn fixture_dir_override_maps_pane_id() {
+        let _env = env_guard();
         let dir = std::env::temp_dir().join(format!("agents-info-test-{}", std::process::id()));
         std::fs::create_dir_all(&dir).unwrap();
         let f = dir.join("w1:p3.jsonl");
         std::fs::write(&f, b"{}").unwrap();
-        // SAFETY: single-threaded test; restored below.
         std::env::set_var("AGENTS_INFO_FIXTURE_DIR", &dir);
         let got = resolve_transcript("w1:p3", Some("/x"), None, Some("uuid"));
         std::env::remove_var("AGENTS_INFO_FIXTURE_DIR");
@@ -190,6 +201,7 @@ mod tests {
 
     #[test]
     fn fixture_dir_override_missing_file_is_none() {
+        let _env = env_guard();
         let dir = std::env::temp_dir().join(format!("agents-info-none-{}", std::process::id()));
         std::fs::create_dir_all(&dir).unwrap();
         std::env::set_var("AGENTS_INFO_FIXTURE_DIR", &dir);
@@ -209,8 +221,7 @@ mod tests {
                 "command":"bash '/Users/x/.claude/hooks/herdr-agent-state.sh' session"}]}]}}"#,
         )
         .unwrap();
-        // SAFETY: single-threaded test; restored below. No other test in this
-        // binary reads $HOME.
+        let _env = env_guard();
         let prior = std::env::var_os("HOME");
         std::env::set_var("HOME", &home);
         let got = claude_hook_installed();
@@ -228,6 +239,7 @@ mod tests {
             std::env::temp_dir().join(format!("agents-info-home-nohook-{}", std::process::id()));
         std::fs::create_dir_all(home.join(".claude")).unwrap();
         std::fs::write(home.join(".claude/settings.json"), r#"{"hooks":{}}"#).unwrap();
+        let _env = env_guard();
         let prior = std::env::var_os("HOME");
         std::env::set_var("HOME", &home);
         let got = claude_hook_installed();
@@ -243,6 +255,7 @@ mod tests {
     fn hook_installed_unknown_without_settings_file() {
         let home =
             std::env::temp_dir().join(format!("agents-info-home-missing-{}", std::process::id()));
+        let _env = env_guard();
         let prior = std::env::var_os("HOME");
         std::env::set_var("HOME", &home); // dir intentionally not created
         let got = claude_hook_installed();

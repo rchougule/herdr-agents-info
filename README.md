@@ -29,8 +29,10 @@ there is no daemon, and non-Claude panes keep herdr's default layout.
 herdr plugin install rchougule/herdr-agents-info
 ```
 
-This builds from source, so `cargo` must be on the machine. Then apply the
-[config recipe](#config-recipe) and reload with `herdr server reload-config`.
+This builds from source, so `cargo` must be on the machine. The repo pins the
+Rust toolchain (`rust-toolchain.toml`), so rustup will fetch that exact version
+on first build if you do not have it. Then apply the [config recipe](#config-recipe)
+and reload with `herdr server reload-config`.
 
 <details>
 <summary>From a local clone (for development)</summary>
@@ -129,6 +131,26 @@ timeout_ms  = 15000         # give up on a single tree walk after this long
 
 Set `enabled = false` to turn the whole thing off. Run `herdr server reload-config` after
 editing.
+
+## Actions & troubleshooting
+
+The plugin runs automatically — a sweep on herdr startup, and per-pane hooks on agent
+events — so normally you do nothing. Two manual actions are available when you need them:
+
+```bash
+herdr plugin action invoke sweep  --plugin rchougule.agents-info   # re-report every row
+herdr plugin action invoke doctor --plugin rchougule.agents-info   # diagnostics
+```
+
+- **`sweep`** ("refresh all rows") re-reports every Claude pane. Reach for it if the sidebar
+  looks stale — herdr does not restore plugin tokens across a server restart, so the startup
+  sweep repaints them, and this action does the same on demand.
+- **`doctor`** prints, per pane, the resolved transcript, model, context %, and disk figure
+  (with cache-hit / timed-out state) plus whether herdr's Claude hook is installed — the
+  first thing to run when a row shows the wrong value or no value.
+
+Rows blank after a restart usually mean the startup sweep has not run yet; invoke `sweep`.
+Config edits need `herdr server reload-config` (or a restart) to take effect.
 
 ## Known limitations
 
