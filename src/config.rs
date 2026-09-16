@@ -80,6 +80,9 @@ pub struct LayoutConfig {
     pub line1_usable: usize,
     /// Usable columns on lines 2+ (default `assumed_width - 4`).
     pub other_usable: usize,
+    /// Optional between-entry separator: a rule char/pattern tiled to the line
+    /// width on its own last line (`$sep`). `None`/empty = no separator.
+    pub separator: Option<String>,
 }
 
 impl Default for LayoutConfig {
@@ -88,6 +91,7 @@ impl Default for LayoutConfig {
             assumed_width: 26,
             line1_usable: 24,
             other_usable: 22,
+            separator: None,
         }
     }
 }
@@ -171,6 +175,7 @@ struct RawLayout {
     assumed_width: Option<usize>,
     line1_usable: Option<usize>,
     other_usable: Option<usize>,
+    separator: Option<String>,
 }
 
 #[derive(Debug, Default, Deserialize)]
@@ -226,6 +231,7 @@ impl Config {
                         .layout
                         .other_usable
                         .unwrap_or_else(|| assumed.saturating_sub(4)),
+                    separator: raw.layout.separator.filter(|s| !s.is_empty()),
                 }
             },
             icons: IconConfig {

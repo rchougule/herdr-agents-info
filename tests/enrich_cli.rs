@@ -95,14 +95,13 @@ fn enrich_reports_exact_argv_for_target_pane() {
         .position(|a| *a == "--seq")
         .expect("argv must contain --seq");
     let head = &args[..seq_pos];
-    // Fixed field->slot token contract (`docs/DESIGN.md` Placement): every report sets
-    // or clears all 9 owned tokens plus the 7 retired class-per-line keys
-    // (belt-and-braces, §3.4). Here workspace=dashboard, the tab echoes it
-    // (dropped), there is no cwd/branch/pane name so the row is thin with no
-    // splitter and no hint (tab/pane/d2/d3 all empty). The transcript is the
-    // 44% opus fixture, so `model` is anchored on line 1 beside the colored
-    // `ctx_ok`; the fixture is far below the disk warn_mb threshold so `disk` is
-    // cleared, and every other owned + retired token is explicitly cleared too.
+    // Fixed field->slot token contract (`docs/DESIGN.md` Placement): every report
+    // sets or clears all 10 owned tokens (within herdr's 16-token cap). Here
+    // workspace=dashboard, the tab echoes it (dropped), there is no cwd/branch/
+    // pane name so the row is thin with no splitter and no hint (tab/pane/d2/d3
+    // empty). The transcript is the 44% opus fixture, so `model` and the colored
+    // `ctx_ok` are set; the fixture is far below the disk warn_mb threshold so
+    // `disk` is cleared, and `sep` is cleared (no separator configured).
     assert_eq!(
         head,
         &[
@@ -128,19 +127,7 @@ fn enrich_reports_exact_argv_for_target_pane() {
             "--clear-token",
             "d3",
             "--clear-token",
-            "t1",
-            "--clear-token",
-            "t2",
-            "--clear-token",
-            "t3",
-            "--clear-token",
-            "d1",
-            "--clear-token",
-            "mo1",
-            "--clear-token",
-            "mo2",
-            "--clear-token",
-            "mo3",
+            "sep",
         ]
     );
 

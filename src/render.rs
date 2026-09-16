@@ -1,18 +1,13 @@
 //! `RowTokens` → `ReportPlan` (`docs/DESIGN.md`, Architecture).
 //!
-//! Full reports only: every report a pane receives sets or clears **all 9**
-//! owned tokens (`$ctx_ok/warn/hot $model $disk $tab $d2 $pane $d3`,
+//! Full reports only: every report a pane receives sets or clears **all 10**
+//! owned tokens (`$ctx_ok/warn/hot $model $disk $tab $d2 $pane $d3 $sep`,
 //! `docs/DESIGN.md` Placement). There is no partial "name-only" report and
 //! no optional "skip this field" state — a subset report is a bug.
 //!
-//! Every report also clears the **retired** class-per-line keys
-//! (`t1 t2 t3 d1 mo1 mo2 mo3`) unconditionally, belt-and-braces, so a user
-//! still running the old `rows_by_agent.claude` config block never renders
-//! stale text from before the layout redesign — clearing a token herdr's
-//! current config does not reference is a no-op.
-//!
 //! `login`/`org` are appended after the owned set only when the config opts
-//! in (default off; identical on every row otherwise).
+//! in (default off; identical on every row otherwise). herdr caps a report at
+//! 16 tokens, so the owned set (10) plus `login`+`org` (2) stays within budget.
 
 use serde::Serialize;
 
@@ -30,11 +25,12 @@ pub struct ReportPlan {
     pub seq: u64,
 }
 
-/// The 9 owned token keys (`docs/DESIGN.md` Placement), in the fixed order every
-/// report emits them: line 1 (`ctx_*`, `model`, `disk`), then line 2 (`tab`,
-/// `d2`), then line 3 (`pane`, `d3`). Each is either set (non-empty value) or
-/// cleared (empty value) — never omitted.
-fn owned(tokens: &RowTokens) -> [(&'static str, &str); 9] {
+/// The 10 owned token keys (`docs/DESIGN.md` Placement), in the fixed order every
+/// report emits them: `ctx_*`, `model`, `disk` (metadata line), `tab`, `d2`,
+/// `pane`, `d3` (identity lines), and `sep` (the between-entry rule). Each is
+/// either set (non-empty value) or cleared (empty value) — never omitted. herdr
+/// caps a report at 16 tokens, which this (10, +2 optional login/org) fits.
+fn owned(tokens: &RowTokens) -> [(&'static str, &str); 10] {
     [
         ("ctx_ok", tokens.ctx_ok.as_str()),
         ("ctx_warn", tokens.ctx_warn.as_str()),
@@ -45,12 +41,9 @@ fn owned(tokens: &RowTokens) -> [(&'static str, &str); 9] {
         ("d2", tokens.d2.as_str()),
         ("pane", tokens.pane.as_str()),
         ("d3", tokens.d3.as_str()),
+        ("sep", tokens.sep.as_str()),
     ]
 }
-
-/// The retired class-per-line keys from the old (pre-redesign) packer.
-/// Always cleared, never set — belt-and-braces against a stale config block.
-const RETIRED: [&str; 7] = ["t1", "t2", "t3", "d1", "mo1", "mo2", "mo3"];
 
 /// Build the full set-or-clear report for a pane from its computed tokens.
 /// `login` is `Some((email, org))` only when `[tokens] login = "always"`; either
@@ -69,9 +62,6 @@ pub fn report_plan(
         } else {
             set.push((key.to_string(), value.to_string()));
         }
-    }
-    for key in RETIRED {
-        clear.push(key.to_string());
     }
     if let Some((email, org)) = login {
         for (key, value) in [("login", email), ("org", org)] {
@@ -105,8 +95,12 @@ mod tests {
 
     #[test]
     fn report_is_always_full() {
-        // 9 owned keys + 7 retired keys, every one set-or-cleared.
+        // All 10 owned keys, every one set-or-cleared, within herdr's 16-token cap.
         let p = report_plan("w1:p1", &tokens(), 7, None);
+        assert!(
+            p.set.len() + p.clear.len() <= 16,
+            "must fit herdr's 16-token cap"
+        );
         let mut keys: Vec<&str> = p
             .set
             .iter()
@@ -115,8 +109,7 @@ mod tests {
             .collect();
         keys.sort();
         let mut expect = vec![
-            "ctx_ok", "ctx_warn", "ctx_hot", "model", "disk", "tab", "d2", "pane", "d3", "t1",
-            "t2", "t3", "d1", "mo1", "mo2", "mo3",
+            "ctx_ok", "ctx_warn", "ctx_hot", "model", "disk", "tab", "d2", "pane", "d3", "sep",
         ];
         expect.sort();
         assert_eq!(keys, expect);
@@ -135,37 +128,12 @@ mod tests {
         );
         assert_eq!(
             p.clear,
-            vec![
-                "ctx_warn", "ctx_hot", "disk", "d2", "pane", "d3", "t1", "t2", "t3", "d1", "mo1",
-                "mo2", "mo3",
-            ]
-            .into_iter()
-            .map(String::from)
-            .collect::<Vec<_>>()
+            vec!["ctx_warn", "ctx_hot", "disk", "d2", "pane", "d3", "sep"]
+                .into_iter()
+                .map(String::from)
+                .collect::<Vec<_>>()
         );
         assert_eq!(p.seq, 7);
-    }
-
-    #[test]
-    fn retired_keys_are_always_cleared_never_set() {
-        // Belt-and-braces: even a fully-populated row clears the old keys.
-        let full = RowTokens {
-            ctx_ok: "10%".into(),
-            model: "opus".into(),
-            tab: "t".into(),
-            d2: "d".into(),
-            pane: "".into(),
-            d3: "".into(),
-            ..RowTokens::default()
-        };
-        let p = report_plan("w1:p1", &full, 1, None);
-        for k in ["t1", "t2", "t3", "d1", "mo1", "mo2", "mo3"] {
-            assert!(p.clear.contains(&k.to_string()), "{k} should be cleared");
-            assert!(
-                !p.set.iter().any(|(sk, _)| sk == k),
-                "{k} should never be set"
-            );
-        }
     }
 
     #[test]

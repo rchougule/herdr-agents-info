@@ -85,17 +85,24 @@ position (`src/pack.rs`, `src/render.rs`):
 
 ```
 line 1   workspace(bold)                              ← the leader has this line to itself
-line 2   T:tab(normal) · d2(dim)
+line 2   T:tab(normal) · d2(dim)                      ← (see combine below)
 line 3   P:pane|A:agent(normal) · d3(dim)
 line 4   [icon] disk · [icon] model(dim) · [icon] ctx_ok|ctx_warn|ctx_hot(color)
+line 5   sep(dim)                                     ← between-entry rule, when configured
 ```
 
 The workspace is herdr's own bold token on line 1, alone, so it is **never crowded or
 truncated** by metadata. The metadata line (`disk · model · ctx%`) carries an optional
-per-field icon (`[icons]` in the config). The **9 owned tokens** the plugin fills, always
-set-or-cleared in this order: `ctx_ok`, `ctx_warn`, `ctx_hot`, `model`, `tab`, `d2`, `pane`,
-`d3`, `disk`. Derived items (§4/§6) join with ` · ` and land in `d3` when a pane is present,
-else `d2`. Exactly one of the three `ctx_*` is ever set, so exactly one color shows.
+per-field icon (`[icons]` in the config). The last line is an optional between-entry rule
+(`[layout] separator`, tiled to the width) so entries are easy to scan without a full blank
+gap. The **10 owned tokens** the plugin fills, always set-or-cleared in this order (herdr
+caps a report at 16 tokens): `ctx_ok`, `ctx_warn`, `ctx_hot`, `model`, `disk`, `tab`, `d2`,
+`pane`, `d3`, `sep`. Derived items (§4/§6) join with ` · ` and land in `d3` when a pane is
+present, else `d2`. Exactly one of the three `ctx_*` is ever set, so exactly one color shows.
+
+**Combine:** when a row has both a tab and a pane, no derived splitter, and they fit one
+line together, they are packed onto line 2 (`T:tab · P:pane`) and the pane line is dropped —
+the type prefixes keep it legible. Otherwise they stay on their own lines.
 
 Widths come from an **assumed** sidebar width (herdr never reports the live width): default
 26 cols → 22 usable on the identity lines (`[layout]` in the config). Only the identity

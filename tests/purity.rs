@@ -332,8 +332,7 @@ fn report_is_always_full() {
 
     assert_eq!(plans.len(), 2);
     let owned = [
-        "ctx_ok", "ctx_warn", "ctx_hot", "model", "disk", "tab", "d2", "pane", "d3", "t1", "t2",
-        "t3", "d1", "mo1", "mo2", "mo3",
+        "ctx_ok", "ctx_warn", "ctx_hot", "model", "disk", "tab", "d2", "pane", "d3", "sep",
     ];
     for p in &plans {
         let mut keys: Vec<&str> = p
@@ -566,8 +565,11 @@ fn custom_title_becomes_agent_name_and_overrides_pane_label() {
     std::env::remove_var("AGENTS_INFO_FIXTURE_DIR");
 
     let t = tokens_of(&outcomes, "w1:p1");
-    assert_eq!(t.pane, "A:my-agent");
-    assert!(!t.pane.contains("should-be-overridden"));
+    // tab + agent name are both short here, so they combine onto one line; the
+    // point is the agent name shows as `A:my-agent` and the pane label lost.
+    let shown = format!("{} {}", t.tab, t.pane);
+    assert!(shown.contains("A:my-agent"), "shown: {shown:?}");
+    assert!(!shown.contains("should-be-overridden"));
 
     for d in [&fx, &cache_dir] {
         let _ = std::fs::remove_dir_all(d);

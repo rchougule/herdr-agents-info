@@ -55,6 +55,9 @@ existing `[ui.sidebar.agents.rows_by_agent]` block in `~/.config/herdr/config.to
 with the whole block below, then run `herdr server reload-config`:
 
 ```toml
+[ui.sidebar.agents]
+row_gap = 0        # the $sep line below separates entries instead of a blank gap
+
 [ui.sidebar.agents.rows_by_agent]
 claude = [
   ["state_icon", { token = "workspace", bold = true }],
@@ -65,15 +68,18 @@ claude = [
    { token = "$ctx_ok",   fg = "#a6e3a1" },
    { token = "$ctx_warn", fg = "#f9e2af" },
    { token = "$ctx_hot",  fg = "#f38ba8", bold = true }],
+  [{ token = "$sep", dim = true }],
 ]
 ```
 
 Each field has one fixed home. **Line 1 is the workspace alone** — the primary identity, so
 it is never crowded or truncated. Lines 2–3 are the tab and pane (with a derived
-distinguisher `$d2`/`$d3`). **Line 4 is the metadata** — `disk · model · context %`. Only
-one of `$ctx_ok`/`$ctx_warn`/`$ctx_hot` is ever set, so exactly one color shows; tokens the
-plugin does not set render as nothing, so rows collapse gracefully (`$disk` appears only when
-a session is heavy — see [Disk footprint](#disk-footprint)).
+distinguisher `$d2`/`$d3`); when both fit one line they combine (`T:tab · P:pane`). **Line 4
+is the metadata** — `disk · model · context %`. **Line 5 is `$sep`**, an optional
+between-entry rule (see [Separator](#separator)). Only one of `$ctx_ok`/`$ctx_warn`/`$ctx_hot`
+is ever set, so exactly one color shows; tokens the plugin does not set render as nothing, so
+rows collapse gracefully (`$disk` appears only when a session is heavy — see
+[Disk footprint](#disk-footprint)).
 
 Want a label per metadata field? Add icons — see [Icons](#icons). The full rules live in
 [`docs/DESIGN.md`](docs/DESIGN.md).
@@ -135,18 +141,38 @@ editing.
 ## Icons
 
 The metadata line (`disk · model · context %`) can carry a per-field icon so a glance says
-what each value is. Set any glyph your terminal renders — emoji, a Nerd Font glyph, or a
-plain symbol. Absent/empty means no icon for that field.
+what each value is. Set any glyph your terminal renders; absent/empty means no icon.
 
 ```toml
 [icons]
-disk    = "💾"
-model   = "🧠"
-context = "📊"
+disk    = "▤"
+model   = "◆"
+context = "◔"
 ```
 
-Renders as `💾 9.6G · 🧠 fable · 📊 44%`. These sit on their own line, so double-width emoji
-do not misalign anything. Run `herdr server reload-config` after editing.
+Renders as `▤ 9.6G · ◆ fable · ◔ 44%`.
+
+- **Plain unicode symbols** (above) are single-cell and render in any font — small and tidy.
+- **Nerd Font glyphs** (` ` disk, ` ` model, ` ` chart) are small *and* recognizable, if
+  your terminal uses a Nerd Font.
+- **Color emoji** (`💾`/`🧠`/`📊`) work but render double-width and oversized in most
+  terminals, so they look big next to text — prefer the above.
+
+Run `herdr server reload-config` after editing.
+
+## Separator
+
+To make a dense sidebar easier to scan, draw a thin rule between entries instead of a blank
+gap. Set a rule character; the plugin tiles it to the row width on `$sep` (the last line of
+the recipe), and set `row_gap = 0` so it replaces the gap rather than adding to it.
+
+```toml
+[layout]
+separator = "─"     # any char/pattern; tiled to the width. Empty/absent = no rule.
+```
+
+Leave `separator` unset (and `row_gap = 1`) if you prefer a blank-line gap, or set neither
+for no separation at all.
 
 ## Actions & troubleshooting
 

@@ -647,8 +647,8 @@ mod tests {
         for p in &plans {
             assert_eq!(
                 p.set.len() + p.clear.len(),
-                16,
-                "every report is full (9 owned + 7 retired)"
+                10,
+                "every report is full (10 owned tokens, within herdr's 16-token cap)"
             );
             assert!(!p
                 .set

@@ -1,7 +1,7 @@
 //! Fixed field→slot packing (`docs/DESIGN.md`, Placement). Every field has
 //! exactly one home; there is no packer float.
 //!
-//! Nine owned tokens, every one set-or-cleared on every report:
+//! Ten owned tokens, every one set-or-cleared on every report:
 //!
 //! ```text
 //! line 1: state_icon · workspace(bold)
@@ -16,10 +16,13 @@
 //! `$disk` is only ever set above the configured threshold, so it appears
 //! rarely, as an alert, and herdr drops it when empty.
 //!
-//! `tab` never shares a line with `pane`; a derived item (splitter §4 / hint §6)
-//! sits after the pane when there is one, else after the tab (`$d3` vs `$d2`) —
-//! never both. herdr draws ` · ` only between visible tokens and drops empty
-//! lines, so empty tokens cost nothing.
+//! `tab` and `pane` normally take lines 2 and 3, but when a row has both, no
+//! derived splitter, and they fit one line together, they are combined onto
+//! line 2 (`T:tab · P:pane`) and the pane line is dropped — the type prefixes
+//! keep it legible. A derived item (splitter §4 / hint §6) sits after the pane
+//! when there is one, else after the tab (`$d3` vs `$d2`) — never both. herdr
+//! draws ` · ` only between visible tokens and drops empty lines, so empty
+//! tokens cost nothing.
 
 use serde::{Deserialize, Serialize};
 
@@ -41,9 +44,9 @@ fn with_icon(icon: &Option<String>, value: &str) -> String {
 const SEP: &str = " · ";
 const SEP_W: usize = 3;
 
-/// The 9 owned tokens for one Claude row (`docs/DESIGN.md` Placement). Empty means
+/// The 10 owned tokens for one Claude row (`docs/DESIGN.md` Placement). Empty means
 /// "cleared". This is what `render::report_plan` turns into a full
-/// set-or-clear report (plus the retired-key clears) and what the per-pane
+/// set-or-clear report and what the per-pane
 /// cache compares for the idempotent skip (`docs/DESIGN.md`, Architecture).
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct RowTokens {
@@ -56,6 +59,9 @@ pub struct RowTokens {
     pub d2: String,
     pub pane: String,
     pub d3: String,
+    /// A constant rule drawn on its own last line as a between-entry separator,
+    /// when `[layout] separator` is configured. Empty = no separator line.
+    pub sep: String,
 }
 
 fn width(s: &str) -> usize {
@@ -150,16 +156,39 @@ pub fn pack(
         rt.disk = with_icon(&icons.disk, d);
     }
 
+    // $sep — a constant rule tiled to the line width, on its own last line, when
+    // configured. Same on every row, so it reads as a between-entry separator.
+    if let Some(rule) = layout.separator.as_deref().filter(|s| !s.is_empty()) {
+        let reps = layout.other_usable.div_ceil(width(rule)).max(1);
+        rt.sep = rule
+            .repeat(reps)
+            .chars()
+            .take(layout.other_usable)
+            .collect();
+    }
+
     // $tab / $pane / $d2 / $d3 — the derived item follows the pane when one
     // is present, else the tab (`docs/DESIGN.md` Placement assignment rule).
     let derived_joined = derived.join(SEP);
     let budget = layout.other_usable;
 
     if let Some(p) = pane {
-        rt.tab = truncate(tab.unwrap_or(""), budget);
-        let (pane_out, d3_out) = fit_with_derived(p, &derived_joined, budget);
-        rt.pane = pane_out;
-        rt.d3 = d3_out;
+        let t = tab.unwrap_or("");
+        // When a row has both a tab and a pane, no derived splitter, and the two
+        // prefixed items fit one line together, combine them onto line 2 (`T:tab
+        // · P:pane`) and drop the empty pane line — the prefixes keep it legible.
+        // Otherwise they stay on their own lines (tab line 2, pane line 3).
+        let combined = (!t.is_empty() && derived_joined.is_empty())
+            .then(|| format!("{t}{SEP}{p}"))
+            .filter(|c| width(c) <= budget);
+        if let Some(c) = combined {
+            rt.tab = c;
+        } else {
+            rt.tab = truncate(t, budget);
+            let (pane_out, d3_out) = fit_with_derived(p, &derived_joined, budget);
+            rt.pane = pane_out;
+            rt.d3 = d3_out;
+        }
     } else {
         let (tab_out, d2_out) = fit_with_derived(tab.unwrap_or(""), &derived_joined, budget);
         rt.tab = tab_out;
@@ -333,13 +362,39 @@ mod tests {
     }
 
     #[test]
-    fn pane_never_on_line_2() {
-        // tab and pane never share a field, regardless of which are present.
-        let rt = pk("w", Some("tabtext"), Some("panetext"), &[], None, None);
-        assert_eq!(rt.tab, "tabtext");
-        assert_eq!(rt.pane, "panetext");
-        assert!(!rt.tab.contains("panetext"));
-        assert!(!rt.pane.contains("tabtext"));
+    fn tab_and_pane_combine_on_one_line_when_they_fit() {
+        // Short tab + pane, no derived → combined onto line 2, pane line dropped.
+        let rt = pk("w", Some("T:api"), Some("P:mw"), &[], None, None);
+        assert_eq!(rt.tab, "T:api · P:mw");
+        assert_eq!(rt.pane, "");
+        assert_eq!(rt.d3, "");
+    }
+
+    #[test]
+    fn tab_and_pane_split_when_too_long_or_derived_present() {
+        // Too long together → separate lines.
+        let rt = pk(
+            "w",
+            Some("a-fairly-long-tab-name"),
+            Some("a-long-pane-name"),
+            &[],
+            None,
+            None,
+        );
+        assert_eq!(
+            rt.tab,
+            "a-fairly-long-tab-name"
+                .chars()
+                .take(22)
+                .collect::<String>()
+        );
+        assert_eq!(rt.pane, "a-long-pane-name");
+
+        // A derived splitter forces the pane (and its splitter) onto line 3.
+        let rt = pk("w", Some("T:x"), Some("P:y"), &["p4V"], None, None);
+        assert_eq!(rt.tab, "T:x");
+        assert_eq!(rt.pane, "P:y");
+        assert_eq!(rt.d3, "p4V");
     }
 
     #[test]

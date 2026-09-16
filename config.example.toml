@@ -30,6 +30,9 @@ assumed_width = 26   # assumed sidebar width in columns
 # indents differ from herdr's defaults:
 # line1_usable = 24
 # other_usable = 22
+# Optional between-entry separator: a rule char/pattern tiled to the row width,
+# drawn on the $sep line. Pair with row_gap = 0 so it replaces the blank gap.
+# separator = "─"
 
 [icons]
 # Optional per-field icons on the metadata line (disk · model · context %), so a
