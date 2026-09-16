@@ -103,10 +103,7 @@ fn parse_line(line: &[u8]) -> Option<UsageEntry> {
     let used = field("input_tokens")
         + field("cache_read_input_tokens")
         + field("cache_creation_input_tokens");
-    let model_id = message
-        .get("model")
-        .and_then(|m| m.as_str())
-        .unwrap_or("");
+    let model_id = message.get("model").and_then(|m| m.as_str()).unwrap_or("");
     // Claude Code writes synthetic assistant messages (interrupted turns, error
     // placeholders, compact boundaries) with `model: "<synthetic>"` and a usage
     // block that does not reflect a real model or the live context. Skipping

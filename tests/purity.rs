@@ -393,8 +393,7 @@ fn identical_output_skips_report() {
     assert_eq!(first.len(), 2, "first sweep reports every pane");
 
     // An enrich over the now-warm cache honors the idempotent-skip.
-    let enriched =
-        app::plans_for_enrich(&facts, &cfg, "w1:p1", Some(&cache_dir), None, None, 2);
+    let enriched = app::plans_for_enrich(&facts, &cfg, "w1:p1", Some(&cache_dir), None, None, 2);
     assert!(
         enriched.is_empty(),
         "unchanged snapshot re-reports nothing on enrich: {enriched:?}"

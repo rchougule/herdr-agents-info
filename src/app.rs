@@ -463,8 +463,7 @@ mod tests {
         assert_eq!(first.len(), 1);
 
         // Steady-state enrich now skips (tokens match the warm cache) …
-        let enriched =
-            plans_for_enrich(&facts, &cfg, "w1:p1", Some(&cache_dir), None, None, 2);
+        let enriched = plans_for_enrich(&facts, &cfg, "w1:p1", Some(&cache_dir), None, None, 2);
         assert!(
             enriched.is_empty(),
             "enrich must honor the idempotent-skip on an unchanged fleet"
