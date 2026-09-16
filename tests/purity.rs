@@ -355,7 +355,11 @@ fn report_is_always_full() {
 
 #[test]
 fn identical_output_skips_report() {
-    // Fixture 18: a snapshot unchanged since the last run produces zero reports.
+    // Fixture 18: the idempotent-skip (§5.2 rule 5). An `enrich` on a snapshot
+    // unchanged since the last run produces zero reports — but a `sweep` always
+    // re-pushes every pane, since it is the startup / restart / refresh path
+    // where herdr's own display state has been reset (regression: rows stayed
+    // blank on herdr restart until an event changed a pane's tokens).
     let _g = ENV_LOCK.lock().unwrap();
     let repos = scratch("f18r");
     let fx = scratch("f18f");
@@ -387,11 +391,23 @@ fn identical_output_skips_report() {
 
     let first = app::plans_for_sweep(&facts, &cfg, Some(&cache_dir), None, None, 1);
     assert_eq!(first.len(), 2, "first sweep reports every pane");
-    let second = app::plans_for_sweep(&facts, &cfg, Some(&cache_dir), None, None, 2);
-    std::env::remove_var("AGENTS_INFO_FIXTURE_DIR");
+
+    // An enrich over the now-warm cache honors the idempotent-skip.
+    let enriched =
+        app::plans_for_enrich(&facts, &cfg, "w1:p1", Some(&cache_dir), None, None, 2);
     assert!(
-        second.is_empty(),
-        "unchanged snapshot re-reports nothing: {second:?}"
+        enriched.is_empty(),
+        "unchanged snapshot re-reports nothing on enrich: {enriched:?}"
+    );
+
+    // A second sweep against the same warm cache re-pushes every pane (the
+    // restart / refresh contract), never skipping.
+    let second = app::plans_for_sweep(&facts, &cfg, Some(&cache_dir), None, None, 3);
+    std::env::remove_var("AGENTS_INFO_FIXTURE_DIR");
+    assert_eq!(
+        second.len(),
+        2,
+        "sweep re-pushes every pane even when the cache matches: {second:?}"
     );
 
     for d in [&repos, &fx, &cache_dir] {

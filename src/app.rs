@@ -219,23 +219,33 @@ fn login_of<'a>(
     (cfg.login == LoginMode::Always).then_some((email.unwrap_or(""), org.unwrap_or("")))
 }
 
-/// Turn changed outcomes into full reports (idempotent-skipped ones are omitted).
+/// Turn outcomes into full reports. When `force` is false the idempotent-skip
+/// (§5.2 rule 5) omits panes whose tokens match the cache; when `force` is true
+/// every pane is reported regardless — used by `sweep`, whose whole job is to
+/// re-push the fleet after herdr's own display state has been reset (a restart
+/// or the manual "refresh all rows" action), where the persisted cache no longer
+/// reflects what herdr is showing.
 fn plans(
     outcomes: Vec<PaneOutcome>,
     cfg: &Config,
     email: Option<&str>,
     org: Option<&str>,
     seq: u64,
+    force: bool,
 ) -> Vec<ReportPlan> {
     let login = login_of(cfg, email, org);
     outcomes
         .into_iter()
-        .filter(|o| o.changed)
+        .filter(|o| force || o.changed)
         .map(|o| render::report_plan(&o.pane_id, &o.tokens, seq, login))
         .collect()
 }
 
-/// `sweep`: read every transcript, report every changed pane.
+/// `sweep`: read every transcript and unconditionally re-report **every** pane
+/// (the idempotent-skip is bypassed). Sweep is the startup / handoff / "refresh
+/// all rows" path, where herdr's display has been reset but the persisted cache
+/// still holds the last tokens — skipping there would leave every row blank
+/// until an event happened to change its tokens.
 pub fn plans_for_sweep(
     facts: &[PaneFacts],
     cfg: &Config,
@@ -245,7 +255,7 @@ pub fn plans_for_sweep(
     seq: u64,
 ) -> Vec<ReportPlan> {
     let outcomes = compute(facts, cfg, ReadScope::All, cache_dir);
-    plans(outcomes, cfg, email, org, seq)
+    plans(outcomes, cfg, email, org, seq, true)
 }
 
 /// `enrich`: re-read only the target pane's transcript; recompute every pane
@@ -261,7 +271,7 @@ pub fn plans_for_enrich(
     seq: u64,
 ) -> Vec<ReportPlan> {
     let outcomes = compute(facts, cfg, ReadScope::One(target_pane_id), cache_dir);
-    plans(outcomes, cfg, email, org, seq)
+    plans(outcomes, cfg, email, org, seq, false)
 }
 
 /// The plugin state directory as a `PathBuf` (owned so callers can pass a ref).
@@ -410,5 +420,64 @@ mod tests {
         }
         apply(&fake, &plans).unwrap();
         assert_eq!(fake.reports.borrow().len(), 2);
+    }
+
+    /// Regression: after a herdr restart, herdr's own pane display is wiped but
+    /// the plugin's on-disk cache persists with the last-emitted tokens. Sweep
+    /// must re-push every pane regardless — the idempotent-skip would otherwise
+    /// leave every row blank until an event changed its tokens (the reported bug:
+    /// "info doesn't populate until I do something in the session").
+    #[test]
+    fn sweep_reports_every_pane_even_when_cache_matches() {
+        use std::path::PathBuf;
+
+        let cache_dir: PathBuf = std::env::temp_dir().join(format!(
+            "agents-info-sweep-{}-{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        std::fs::create_dir_all(&cache_dir).unwrap();
+
+        let fake = FakeClient {
+            agents: vec![claude_agent("w1:p1", "w1", "t1")],
+            workspaces: vec![WorkspaceInfo {
+                workspace_id: "w1".into(),
+                label: "dashboard".into(),
+            }],
+            tabs: vec![TabInfo {
+                tab_id: "t1".into(),
+                workspace_id: "w1".into(),
+                label: "dashboard".into(),
+            }],
+            ..Default::default()
+        };
+        let cfg = Config::default();
+        let facts = gather(&fake).unwrap();
+
+        // Prime the cache exactly as a prior run would have (simulating the
+        // state that survives a restart), then confirm the token set is stable.
+        let first = plans_for_sweep(&facts, &cfg, Some(&cache_dir), None, None, 1);
+        assert_eq!(first.len(), 1);
+
+        // Steady-state enrich now skips (tokens match the warm cache) …
+        let enriched =
+            plans_for_enrich(&facts, &cfg, "w1:p1", Some(&cache_dir), None, None, 2);
+        assert!(
+            enriched.is_empty(),
+            "enrich must honor the idempotent-skip on an unchanged fleet"
+        );
+
+        // … but a restart sweep against that same warm cache must still report.
+        let after_restart = plans_for_sweep(&facts, &cfg, Some(&cache_dir), None, None, 3);
+        assert_eq!(
+            after_restart.len(),
+            1,
+            "sweep must re-push every pane even when the cache matches"
+        );
+
+        let _ = std::fs::remove_dir_all(&cache_dir);
     }
 }

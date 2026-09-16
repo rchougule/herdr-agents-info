@@ -183,8 +183,13 @@ and the coupling is made *safe* rather than removed:
 4. **Metadata lives in its own tokens.** `model` is never packed into the same token as
    identity (§7). Even if rule 2 were violated, an identity rewrite could not remove
    the model. Belt and braces.
-5. **Idempotent skip.** If `F` yields the same `RowTokens` as the cache holds for that
-   pane, no report is sent. A focus event on a stable fleet produces zero reports.
+5. **Idempotent skip (event path only).** On an `enrich` (an event), if `F` yields the
+   same `RowTokens` as the cache holds for that pane, no report is sent — a focus event on
+   a stable fleet produces zero reports. **`sweep` never skips:** it re-pushes every pane
+   unconditionally. Sweep is the startup / restart / "refresh all rows" path, where
+   herdr's own display state has been reset but the persisted cache still holds the last
+   tokens; skipping there would leave every row blank until an event happened to change a
+   pane's tokens.
 6. **Sibling rows may legitimately change only when the snapshot changes**: a Claude
    pane appears (`pane.created`, `pane.agent_detected`), disappears (`pane.closed`), or
    a label is renamed (covered by the sweep action and the next snapshot). This is
