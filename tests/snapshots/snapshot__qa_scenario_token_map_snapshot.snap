@@ -22,6 +22,7 @@ expression: plans
     "clear": [
       "ctx_warn",
       "ctx_hot",
+      "disk",
       "d2",
       "pane",
       "d3",
@@ -58,6 +59,7 @@ expression: plans
     "clear": [
       "ctx_ok",
       "ctx_warn",
+      "disk",
       "d2",
       "d3",
       "t1",
@@ -89,6 +91,7 @@ expression: plans
     "clear": [
       "ctx_warn",
       "ctx_hot",
+      "disk",
       "d2",
       "pane",
       "d3",
@@ -125,6 +128,7 @@ expression: plans
     "clear": [
       "ctx_warn",
       "ctx_hot",
+      "disk",
       "d2",
       "d3",
       "t1",
@@ -156,6 +160,7 @@ expression: plans
     "clear": [
       "ctx_warn",
       "ctx_hot",
+      "disk",
       "d2",
       "pane",
       "d3",
@@ -188,6 +193,7 @@ expression: plans
     "clear": [
       "ctx_warn",
       "ctx_hot",
+      "disk",
       "d2",
       "pane",
       "d3",
@@ -220,6 +226,7 @@ expression: plans
     "clear": [
       "ctx_warn",
       "ctx_hot",
+      "disk",
       "d2",
       "pane",
       "d3",
@@ -246,6 +253,7 @@ expression: plans
       "ctx_warn",
       "ctx_hot",
       "model",
+      "disk",
       "d2",
       "pane",
       "d3",
@@ -278,6 +286,7 @@ expression: plans
     "clear": [
       "ctx_warn",
       "ctx_hot",
+      "disk",
       "tab",
       "pane",
       "d3",
@@ -310,6 +319,7 @@ expression: plans
     "clear": [
       "ctx_ok",
       "ctx_hot",
+      "disk",
       "d2",
       "pane",
       "d3",
@@ -346,6 +356,7 @@ expression: plans
     "clear": [
       "ctx_warn",
       "ctx_hot",
+      "disk",
       "d2",
       "d3",
       "t1",
@@ -381,6 +392,7 @@ expression: plans
     "clear": [
       "ctx_warn",
       "ctx_hot",
+      "disk",
       "pane",
       "d3",
       "t1",
@@ -416,6 +428,7 @@ expression: plans
     "clear": [
       "ctx_warn",
       "ctx_hot",
+      "disk",
       "pane",
       "d3",
       "t1",
@@ -451,6 +464,7 @@ expression: plans
     "clear": [
       "ctx_warn",
       "ctx_hot",
+      "disk",
       "d2",
       "d3",
       "t1",

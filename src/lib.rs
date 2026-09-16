@@ -7,6 +7,7 @@ pub mod app;
 pub mod cache;
 pub mod claude;
 pub mod config;
+pub mod disk;
 pub mod git;
 pub mod herdr;
 pub mod model;

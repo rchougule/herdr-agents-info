@@ -71,7 +71,11 @@ fn run_sweep(client: &dyn HerdrClient, cfg: &Config) -> std::io::Result<()> {
     let facts = app::gather(client)?;
     let acct = account_for(cfg);
     let cache_dir = app::state_dir();
-    let plans = app::plans_for_sweep(
+
+    // Phase 1: push the fast tokens (name/model/ctx + any cached disk) for every
+    // pane and flush them to herdr immediately — a cold disk walk must never
+    // make the sidebar feel hung.
+    let phase1 = app::plans_for_sweep(
         &facts,
         cfg,
         cache_dir.as_deref(),
@@ -79,7 +83,23 @@ fn run_sweep(client: &dyn HerdrClient, cfg: &Config) -> std::io::Result<()> {
         acct.org.as_deref(),
         now_millis(),
     );
-    app::apply(client, &plans)
+    app::apply(client, &phase1)?;
+
+    // Phase 2: measure disk off the critical path (TTL-cached, parallel,
+    // timeout-bounded), then re-report only the panes whose $disk changed.
+    if cfg.disk.enabled {
+        app::refresh_disk(&facts, cfg, cache_dir.as_deref());
+        let phase2 = app::plans_for_disk_phase2(
+            &facts,
+            cfg,
+            cache_dir.as_deref(),
+            acct.email.as_deref(),
+            acct.org.as_deref(),
+            now_millis(),
+        );
+        app::apply(client, &phase2)?;
+    }
+    Ok(())
 }
 
 fn run_enrich(client: &dyn HerdrClient, cfg: &Config) -> std::io::Result<()> {
@@ -139,6 +159,14 @@ fn run_doctor(client: &dyn HerdrClient, cfg: &Config) -> ExitCode {
         cfg.ctx_default_window,
         cfg.auto_promote_1m,
     );
+    println!(
+        "  disk: enabled={} measure={:?} warn_mb={} refresh_secs={} timeout_ms={}",
+        cfg.disk.enabled,
+        cfg.disk.measure,
+        cfg.disk.warn_mb,
+        cfg.disk.refresh_secs,
+        cfg.disk.timeout_ms,
+    );
 
     // Environment / hook wiring.
     println!("\n[environment]");
@@ -184,6 +212,16 @@ fn run_doctor(client: &dyn HerdrClient, cfg: &Config) -> ExitCode {
             if facts.is_empty() {
                 println!("  (no Claude panes found)");
             }
+            // Run the real disk-refresh pass so the report reflects the TTL
+            // cache, parallel measurement and per-tree timeout exactly as a
+            // sweep would (cache-hit vs fresh, timed-out). Empty when disk is
+            // off or there is no state dir.
+            let cache_dir = app::state_dir();
+            let probes: std::collections::HashMap<String, app::DiskProbe> =
+                app::refresh_disk(&facts, cfg, cache_dir.as_deref())
+                    .into_iter()
+                    .map(|p| (p.pane_id.clone(), p))
+                    .collect();
             for f in &facts {
                 let a = &f.agent;
                 let uuid = a
@@ -229,6 +267,44 @@ fn run_doctor(client: &dyn HerdrClient, cfg: &Config) -> ExitCode {
                         }
                     }
                     None => println!("    transcript=(unresolved: no matching project dir)"),
+                }
+
+                // Disk footprint (the $disk token source), from the refresh pass
+                // above so it reflects the real cache/timeout behavior.
+                if !cfg.disk.enabled {
+                    println!("    disk=(disabled)");
+                } else if let Some(pr) = probes.get(&a.pane_id) {
+                    let tgt = pr
+                        .target
+                        .as_deref()
+                        .map(|t| t.display().to_string())
+                        .unwrap_or_else(|| "(unresolved)".to_string());
+                    match pr.bytes {
+                        Some(bytes) => {
+                            let threshold = cfg.disk.warn_mb.saturating_mul(1 << 20);
+                            println!(
+                                "    disk={} ({:?} {}) {}{} → token {}",
+                                agents_info::disk::human_readable(bytes),
+                                cfg.disk.measure,
+                                tgt,
+                                if pr.cache_hit { "cache-hit" } else { "fresh" },
+                                if pr.timed_out { " TIMED-OUT" } else { "" },
+                                if bytes >= threshold {
+                                    "shown"
+                                } else {
+                                    "hidden"
+                                },
+                            );
+                        }
+                        None => println!(
+                            "    disk=(unmeasurable{}) ({:?} {})",
+                            if pr.timed_out { ", TIMED-OUT" } else { "" },
+                            cfg.disk.measure,
+                            tgt,
+                        ),
+                    }
+                } else {
+                    println!("    disk=(no state dir; not measured this run)");
                 }
             }
         }

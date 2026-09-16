@@ -10,10 +10,13 @@
 
 use std::io;
 use std::path::{Path, PathBuf};
+use std::thread;
+use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
 use crate::cache::{self, PaneCache};
-use crate::claude::{self, transcript::UsageEntry, window};
+use crate::claude::{self, window};
 use crate::config::{Config, LoginMode};
+use crate::disk::{self, Measure};
 use crate::git;
 use crate::herdr::HerdrClient;
 use crate::model::AgentInfo;
@@ -34,6 +37,10 @@ pub enum ReadScope<'a> {
     All,
     /// `enrich`: read only the event's target pane; siblings use the cache.
     One(&'a str),
+    /// Read no transcripts — every pane's model/ctx comes from the cache. Used
+    /// by the sweep's disk phase-2 recompute, where only `disk_bytes` (freshly
+    /// measured into the cache) has changed since phase 1.
+    None,
 }
 
 impl ReadScope<'_> {
@@ -41,6 +48,7 @@ impl ReadScope<'_> {
         match self {
             ReadScope::All => true,
             ReadScope::One(target) => *target == pane_id,
+            ReadScope::None => false,
         }
     }
 }
@@ -115,28 +123,37 @@ fn session_uuid(a: &AgentInfo) -> Option<&str> {
         .map(|s| s.value.as_str())
 }
 
-/// Read the latest usage entry for a pane by resolving its transcript path.
-fn read_usage(a: &AgentInfo) -> Option<UsageEntry> {
-    let path = claude::resolve_transcript(
+/// Resolve a pane's transcript path (shared by the usage read and the disk
+/// measure, so the path is resolved once).
+fn transcript_path(a: &AgentInfo) -> Option<PathBuf> {
+    claude::resolve_transcript(
         &a.pane_id,
         a.cwd.as_deref(),
         a.foreground_cwd.as_deref(),
         session_uuid(a),
-    )?;
-    claude::transcript::read_last_usage(&path)
+    )
+}
+
+/// A pane's transcript-derived metadata for one report.
+struct Meta {
+    model: Option<String>,
+    pct: Option<u8>,
+    /// Raw disk footprint in bytes (the `warn_mb` gate + formatting are applied
+    /// at pack time). Always read from the cache — the sweep's dedicated disk
+    /// phase ([`refresh_disk`]) is the only place that measures, so no report is
+    /// ever held up by a tree walk.
+    disk_bytes: Option<u64>,
 }
 
 /// A pane's `(model, ctx%)`: freshly read from its transcript when in scope
-/// (§5.2 rule 1), otherwise taken from the cache — never re-reading a transcript
-/// for a sibling (rule 3).
-fn metadata(
-    agent: &AgentInfo,
-    scope: ReadScope,
-    cfg: &Config,
-    prev: Option<&PaneCache>,
-) -> (Option<String>, Option<u8>) {
-    if scope.reads(&agent.pane_id) {
-        match read_usage(agent) {
+/// (§5.2 rule 1), otherwise from the cache. `disk_bytes` always comes from the
+/// cache (never measured on a report's critical path).
+fn metadata(agent: &AgentInfo, scope: ReadScope, cfg: &Config, prev: Option<&PaneCache>) -> Meta {
+    let (model, pct) = if scope.reads(&agent.pane_id) {
+        match transcript_path(agent)
+            .as_deref()
+            .and_then(claude::transcript::read_last_usage)
+        {
             Some(u) => {
                 let win = window::resolve_window(&u.model_id, u.used, cfg);
                 (Some(u.model_short()), Some(window::pct(u.used, win)))
@@ -145,7 +162,24 @@ fn metadata(
         }
     } else {
         (prev.and_then(|c| c.model.clone()), prev.and_then(|c| c.pct))
+    };
+    Meta {
+        model,
+        pct,
+        disk_bytes: prev.and_then(|c| c.disk_bytes),
     }
+}
+
+/// The `$disk` token value for a pane: `Some("1.2G")` only when disk reporting
+/// is on and the footprint is at or above the `warn_mb` threshold; else `None`
+/// (cleared). Applied at pack time so a `warn_mb` change takes effect on the
+/// next compute for every pane, without a re-measure.
+fn disk_token(bytes: Option<u64>, cfg: &Config) -> Option<String> {
+    if !cfg.disk.enabled {
+        return None;
+    }
+    let threshold = cfg.disk.warn_mb.saturating_mul(1 << 20);
+    bytes.filter(|&b| b >= threshold).map(disk::human_readable)
 }
 
 /// Compute every pane's `RowTokens` from one snapshot, reading transcripts per
@@ -168,13 +202,14 @@ pub fn compute(
         .map(|(f, row)| {
             let pane_id = &f.agent.pane_id;
             let prev = cache_dir.and_then(|d| cache::load(d, pane_id));
-            let (model, pct) = metadata(&f.agent, scope, cfg, prev.as_ref());
+            let meta = metadata(&f.agent, scope, cfg, prev.as_ref());
 
             let model_for_pack = if cfg.show_model {
-                model.as_deref()
+                meta.model.as_deref()
             } else {
                 None
             };
+            let disk_str = disk_token(meta.disk_bytes, cfg);
             let derived: Vec<&str> = row.derived.iter().map(String::as_str).collect();
             let tokens = pack::pack(
                 &row.workspace,
@@ -182,7 +217,8 @@ pub fn compute(
                 row.pane.as_deref(),
                 &derived,
                 model_for_pack,
-                pct,
+                meta.pct,
+                disk_str.as_deref(),
                 &cfg.layout,
                 cfg.warn,
                 cfg.hot,
@@ -194,8 +230,12 @@ pub fn compute(
                     d,
                     pane_id,
                     &PaneCache {
-                        model: model.clone(),
-                        pct,
+                        model: meta.model.clone(),
+                        pct: meta.pct,
+                        disk_bytes: meta.disk_bytes,
+                        // Preserve the measurement timestamp — compute never
+                        // measures; only refresh_disk sets it.
+                        disk_measured_at: prev.as_ref().and_then(|p| p.disk_measured_at),
                         tokens: tokens.clone(),
                     },
                 );
@@ -256,6 +296,165 @@ pub fn plans_for_sweep(
 ) -> Vec<ReportPlan> {
     let outcomes = compute(facts, cfg, ReadScope::All, cache_dir);
     plans(outcomes, cfg, email, org, seq, true)
+}
+
+/// One pane's disk-measurement outcome, for diagnostics (`doctor`).
+pub struct DiskProbe {
+    pub pane_id: String,
+    /// The path measured (cwd dir, or transcript file), when resolvable.
+    pub target: Option<PathBuf>,
+    pub bytes: Option<u64>,
+    /// Served from the TTL cache without measuring this sweep.
+    pub cache_hit: bool,
+    /// The (cwd) walk hit its `timeout_ms` budget; the last-known size is kept.
+    pub timed_out: bool,
+}
+
+/// Resolve the path a pane's disk footprint is measured over, per the mode: the
+/// working directory (worktree) for `cwd`, else the resolved transcript file.
+fn measure_target(agent: &AgentInfo, cfg: &Config) -> Option<PathBuf> {
+    match cfg.disk.measure {
+        Measure::Cwd => agent
+            .foreground_cwd
+            .as_deref()
+            .or(agent.cwd.as_deref())
+            .filter(|s| !s.is_empty())
+            .map(PathBuf::from),
+        Measure::Transcript | Measure::ProjectDir => transcript_path(agent),
+    }
+}
+
+fn unix_secs() -> u64 {
+    SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map(|d| d.as_secs())
+        .unwrap_or(0)
+}
+
+/// The sweep's disk-measurement pass — run *between* the two report phases so no
+/// report ever waits on a tree walk. For every pane whose cached footprint is
+/// stale, it measures the target once (distinct targets in parallel via
+/// `thread::scope`, each bounded by `timeout_ms`) and writes `disk_bytes` +
+/// `disk_measured_at` back into the cache, preserving the rest of the entry.
+///
+/// Only the expensive `cwd` walk is TTL-gated (`refresh_secs`); the cheap
+/// `transcript` / `project_dir` measures refresh every sweep. A timed-out walk
+/// keeps the last-known size and stamps `now`, so it is retried only after the
+/// TTL rather than every sweep. No-op when disk is disabled or there is no cache
+/// dir. Returns a probe per pane for `doctor`.
+pub fn refresh_disk(facts: &[PaneFacts], cfg: &Config, cache_dir: Option<&Path>) -> Vec<DiskProbe> {
+    let Some(dir) = cache_dir else {
+        return Vec::new();
+    };
+    if !cfg.disk.enabled {
+        return Vec::new();
+    }
+    let now = unix_secs();
+    let ttl = cfg.disk.refresh_secs;
+    let ttl_gated = cfg.disk.measure.is_tree_walk();
+
+    struct Pending {
+        pane_id: String,
+        target: Option<PathBuf>,
+        prev: Option<PaneCache>,
+        stale: bool,
+    }
+    let pend: Vec<Pending> = facts
+        .iter()
+        .map(|f| {
+            let pane_id = f.agent.pane_id.clone();
+            let prev = cache::load(dir, &pane_id);
+            let target = measure_target(&f.agent, cfg);
+            let fresh = ttl_gated
+                && prev
+                    .as_ref()
+                    .and_then(|c| c.disk_measured_at)
+                    .is_some_and(|t| now.saturating_sub(t) < ttl);
+            let stale = target.is_some() && !fresh;
+            Pending {
+                pane_id,
+                target,
+                prev,
+                stale,
+            }
+        })
+        .collect();
+
+    // Distinct stale targets, each measured exactly once.
+    let unique: Vec<PathBuf> = {
+        let mut seen = std::collections::HashSet::new();
+        pend.iter()
+            .filter(|p| p.stale)
+            .filter_map(|p| p.target.clone())
+            .filter(|t| seen.insert(t.clone()))
+            .collect()
+    };
+    let measure = cfg.disk.measure;
+    let timeout = Duration::from_millis(cfg.disk.timeout_ms);
+    let mut sized: std::collections::HashMap<PathBuf, disk::Sized> =
+        std::collections::HashMap::new();
+    thread::scope(|scope| {
+        let handles: Vec<_> = unique
+            .iter()
+            .map(|t| {
+                let t = t.clone();
+                scope.spawn(move || {
+                    let deadline = Instant::now() + timeout;
+                    (t.clone(), disk::measure(&t, measure, deadline))
+                })
+            })
+            .collect();
+        for h in handles {
+            if let Ok((t, s)) = h.join() {
+                sized.insert(t, s);
+            }
+        }
+    });
+
+    pend.into_iter()
+        .map(|p| {
+            let prev_bytes = p.prev.as_ref().and_then(|c| c.disk_bytes);
+            let prev_at = p.prev.as_ref().and_then(|c| c.disk_measured_at);
+            let (bytes, cache_hit, timed_out, measured_at) = if !p.stale {
+                (prev_bytes, true, false, prev_at)
+            } else {
+                match p.target.as_ref().and_then(|t| sized.get(t)) {
+                    Some(s) if s.timed_out => (prev_bytes, false, true, Some(now)),
+                    Some(s) => (s.bytes, false, false, Some(now)),
+                    None => (prev_bytes, true, false, prev_at),
+                }
+            };
+            if p.stale {
+                let mut c = p.prev.clone().unwrap_or_default();
+                c.disk_bytes = bytes;
+                c.disk_measured_at = measured_at;
+                cache::store(dir, &p.pane_id, &c);
+            }
+            DiskProbe {
+                pane_id: p.pane_id,
+                target: p.target,
+                bytes,
+                cache_hit,
+                timed_out,
+            }
+        })
+        .collect()
+}
+
+/// Sweep phase 2: after [`refresh_disk`] has updated the cache, recompute every
+/// pane from the cache (no transcript re-read — `ReadScope::None`) and report
+/// only those whose tokens changed, i.e. panes whose freshly-measured `$disk`
+/// differs from what phase 1 reported. Idempotent, unlike phase 1's forced push.
+pub fn plans_for_disk_phase2(
+    facts: &[PaneFacts],
+    cfg: &Config,
+    cache_dir: Option<&Path>,
+    email: Option<&str>,
+    org: Option<&str>,
+    seq: u64,
+) -> Vec<ReportPlan> {
+    let outcomes = compute(facts, cfg, ReadScope::None, cache_dir);
+    plans(outcomes, cfg, email, org, seq, false)
 }
 
 /// `enrich`: re-read only the target pane's transcript; recompute every pane
@@ -409,8 +608,8 @@ mod tests {
         for p in &plans {
             assert_eq!(
                 p.set.len() + p.clear.len(),
-                15,
-                "every report is full (8 owned + 7 retired)"
+                16,
+                "every report is full (9 owned + 7 retired)"
             );
             assert!(!p
                 .set

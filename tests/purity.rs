@@ -332,8 +332,8 @@ fn report_is_always_full() {
 
     assert_eq!(plans.len(), 2);
     let owned = [
-        "ctx_ok", "ctx_warn", "ctx_hot", "model", "tab", "d2", "pane", "d3", "t1", "t2", "t3",
-        "d1", "mo1", "mo2", "mo3",
+        "ctx_ok", "ctx_warn", "ctx_hot", "model", "disk", "tab", "d2", "pane", "d3", "t1", "t2",
+        "t3", "d1", "mo1", "mo2", "mo3",
     ];
     for p in &plans {
         let mut keys: Vec<&str> = p

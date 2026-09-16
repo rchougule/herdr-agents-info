@@ -96,12 +96,13 @@ fn enrich_reports_exact_argv_for_target_pane() {
         .expect("argv must contain --seq");
     let head = &args[..seq_pos];
     // Fixed field->slot token contract (layout-design §3.1): every report sets
-    // or clears all 8 owned tokens plus the 7 retired class-per-line keys
+    // or clears all 9 owned tokens plus the 7 retired class-per-line keys
     // (belt-and-braces, §3.4). Here workspace=dashboard, the tab echoes it
     // (dropped), there is no cwd/branch/pane name so the row is thin with no
     // splitter and no hint (tab/pane/d2/d3 all empty). The transcript is the
     // 44% opus fixture, so `model` is anchored on line 1 beside the colored
-    // `ctx_ok`, and every other owned + retired token is explicitly cleared.
+    // `ctx_ok`; the fixture is far below the disk warn_mb threshold so `disk` is
+    // cleared, and every other owned + retired token is explicitly cleared too.
     assert_eq!(
         head,
         &[
@@ -116,6 +117,8 @@ fn enrich_reports_exact_argv_for_target_pane() {
             "ctx_warn",
             "--clear-token",
             "ctx_hot",
+            "--clear-token",
+            "disk",
             "--clear-token",
             "tab",
             "--clear-token",

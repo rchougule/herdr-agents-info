@@ -26,7 +26,18 @@ pub struct PaneCache {
     /// Context percentage.
     #[serde(default)]
     pub pct: Option<u8>,
-    /// The last emitted 8-token map.
+    /// Last measured disk footprint in bytes (raw; the `warn_mb` gate and
+    /// human-readable formatting are applied at pack time, so a threshold change
+    /// takes effect on the next compute without a re-measure). Every report
+    /// (both `sweep` phases and `enrich`) reads this from the cache; only the
+    /// sweep's disk-refresh pass measures and writes it.
+    #[serde(default)]
+    pub disk_bytes: Option<u64>,
+    /// Unix seconds when `disk_bytes` was last measured, for the `refresh_secs`
+    /// TTL. `None` means never measured (so the next sweep will measure it).
+    #[serde(default)]
+    pub disk_measured_at: Option<u64>,
+    /// The last emitted owned-token map.
     #[serde(default)]
     pub tokens: RowTokens,
 }
@@ -86,6 +97,8 @@ mod tests {
         let entry = PaneCache {
             model: Some("opus".into()),
             pct: Some(44),
+            disk_bytes: Some(1_234_567),
+            disk_measured_at: Some(1_700_000_000),
             tokens,
         };
         store(&d, "w1:p1", &entry);

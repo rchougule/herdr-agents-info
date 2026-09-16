@@ -1,7 +1,7 @@
 //! `RowTokens` → `ReportPlan` (§5.2 rule 2 of `docs/naming-framing.md`).
 //!
-//! Full reports only: every report a pane receives sets or clears **all 8**
-//! owned tokens (`$ctx_ok/warn/hot $model $tab $d2 $pane $d3`,
+//! Full reports only: every report a pane receives sets or clears **all 9**
+//! owned tokens (`$ctx_ok/warn/hot $model $disk $tab $d2 $pane $d3`,
 //! `docs/layout-design.md` §3.1). There is no partial "name-only" report and
 //! no optional "skip this field" state — a subset report is a bug.
 //!
@@ -30,16 +30,17 @@ pub struct ReportPlan {
     pub seq: u64,
 }
 
-/// The 8 owned token keys (layout-design §3.1), in the fixed order every
-/// report emits them: line 1 (`ctx_*` then `model`), then line 2 (`tab`,
+/// The 9 owned token keys (layout-design §3.1), in the fixed order every
+/// report emits them: line 1 (`ctx_*`, `model`, `disk`), then line 2 (`tab`,
 /// `d2`), then line 3 (`pane`, `d3`). Each is either set (non-empty value) or
 /// cleared (empty value) — never omitted.
-fn owned(tokens: &RowTokens) -> [(&'static str, &str); 8] {
+fn owned(tokens: &RowTokens) -> [(&'static str, &str); 9] {
     [
         ("ctx_ok", tokens.ctx_ok.as_str()),
         ("ctx_warn", tokens.ctx_warn.as_str()),
         ("ctx_hot", tokens.ctx_hot.as_str()),
         ("model", tokens.model.as_str()),
+        ("disk", tokens.disk.as_str()),
         ("tab", tokens.tab.as_str()),
         ("d2", tokens.d2.as_str()),
         ("pane", tokens.pane.as_str()),
@@ -104,7 +105,7 @@ mod tests {
 
     #[test]
     fn report_is_always_full() {
-        // 8 owned keys + 7 retired keys, every one set-or-cleared.
+        // 9 owned keys + 7 retired keys, every one set-or-cleared.
         let p = report_plan("w1:p1", &tokens(), 7, None);
         let mut keys: Vec<&str> = p
             .set
@@ -114,8 +115,8 @@ mod tests {
             .collect();
         keys.sort();
         let mut expect = vec![
-            "ctx_ok", "ctx_warn", "ctx_hot", "model", "tab", "d2", "pane", "d3", "t1", "t2", "t3",
-            "d1", "mo1", "mo2", "mo3",
+            "ctx_ok", "ctx_warn", "ctx_hot", "model", "disk", "tab", "d2", "pane", "d3", "t1",
+            "t2", "t3", "d1", "mo1", "mo2", "mo3",
         ];
         expect.sort();
         assert_eq!(keys, expect);
@@ -135,8 +136,8 @@ mod tests {
         assert_eq!(
             p.clear,
             vec![
-                "ctx_warn", "ctx_hot", "d2", "pane", "d3", "t1", "t2", "t3", "d1", "mo1", "mo2",
-                "mo3",
+                "ctx_warn", "ctx_hot", "disk", "d2", "pane", "d3", "t1", "t2", "t3", "d1", "mo1",
+                "mo2", "mo3",
             ]
             .into_iter()
             .map(String::from)

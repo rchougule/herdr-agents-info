@@ -7,6 +7,45 @@ use std::path::PathBuf;
 
 use serde::Deserialize;
 
+use crate::disk::Measure;
+
+/// Per-pane disk-footprint token config (`[disk]`, `src/disk.rs`). The `$disk`
+/// token is set only when a pane's footprint is at or above `warn_mb`, so it
+/// reads as an alert, not clutter.
+#[derive(Debug, Clone)]
+pub struct DiskConfig {
+    /// Whether to measure and report the `$disk` token at all.
+    pub enabled: bool,
+    /// What the footprint is measured over (`cwd` / `transcript` / `project_dir`).
+    pub measure: Measure,
+    /// Threshold in MiB; below it the `$disk` token is cleared.
+    pub warn_mb: u64,
+    /// TTL for the (expensive) `cwd` walk: a pane's footprint is re-measured on
+    /// a sweep only when its cache is older than this. Warm sweeps are instant.
+    pub refresh_secs: u64,
+    /// Per-tree wall-clock budget for a single `cwd` walk; it bails rather than
+    /// hang a pathological tree.
+    pub timeout_ms: u64,
+}
+
+impl Default for DiskConfig {
+    fn default() -> Self {
+        Self {
+            enabled: true,
+            measure: Measure::Cwd,
+            warn_mb: 500,
+            refresh_secs: 1800,
+            // 15s, not the ~4s first suggested: a real worktree (measured 9.6G
+            // and 25G here) needs ~8–10s to walk cold, and 4s cached them as
+            // "unmeasurable" — defeating the feature. The walk runs off the
+            // sweep's critical path (phase 1 already flushed the fast tokens),
+            // so a larger cap costs no responsiveness; it only bounds a truly
+            // pathological tree (e.g. a stuck network mount).
+            timeout_ms: 15000,
+        }
+    }
+}
+
 /// Login token mode. `"auto"` is reserved for a future release and treated as `Off` for now.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum LoginMode {
@@ -66,6 +105,7 @@ pub struct Config {
     pub auto_promote_1m: bool,
     pub by_model: HashMap<String, u64>,
     pub layout: LayoutConfig,
+    pub disk: DiskConfig,
 }
 
 impl Default for Config {
@@ -79,6 +119,7 @@ impl Default for Config {
             auto_promote_1m: true,
             by_model: HashMap::new(),
             layout: LayoutConfig::default(),
+            disk: DiskConfig::default(),
         }
     }
 }
@@ -94,6 +135,17 @@ struct RawConfig {
     context_window: RawContextWindow,
     #[serde(default)]
     layout: RawLayout,
+    #[serde(default)]
+    disk: RawDisk,
+}
+
+#[derive(Debug, Default, Deserialize)]
+struct RawDisk {
+    enabled: Option<bool>,
+    measure: Option<String>,
+    warn_mb: Option<u64>,
+    refresh_secs: Option<u64>,
+    timeout_ms: Option<u64>,
 }
 
 #[derive(Debug, Default, Deserialize)]
@@ -157,6 +209,18 @@ impl Config {
                         .other_usable
                         .unwrap_or_else(|| assumed.saturating_sub(4)),
                 }
+            },
+            disk: DiskConfig {
+                enabled: raw.disk.enabled.unwrap_or(d.disk.enabled),
+                measure: raw
+                    .disk
+                    .measure
+                    .as_deref()
+                    .map(Measure::parse)
+                    .unwrap_or(d.disk.measure),
+                warn_mb: raw.disk.warn_mb.unwrap_or(d.disk.warn_mb),
+                refresh_secs: raw.disk.refresh_secs.unwrap_or(d.disk.refresh_secs),
+                timeout_ms: raw.disk.timeout_ms.unwrap_or(d.disk.timeout_ms),
             },
         })
     }
@@ -228,6 +292,38 @@ auto_promote_1m = true
         let c = Config::from_toml_str("[thresholds]\nwarn = 40\n").unwrap();
         assert_eq!(c.warn, 40);
         assert_eq!(c.hot, 80); // untouched default
+    }
+
+    #[test]
+    fn disk_defaults() {
+        let c = Config::from_toml_str("").unwrap();
+        assert!(c.disk.enabled);
+        assert_eq!(c.disk.measure, Measure::Cwd);
+        assert_eq!(c.disk.warn_mb, 500);
+        assert_eq!(c.disk.refresh_secs, 1800);
+        assert_eq!(c.disk.timeout_ms, 15000);
+    }
+
+    #[test]
+    fn disk_section_parses() {
+        let c = Config::from_toml_str(
+            "[disk]\nenabled = true\nmeasure = \"project_dir\"\nwarn_mb = 250\nrefresh_secs = 600\ntimeout_ms = 2000\n",
+        )
+        .unwrap();
+        assert!(c.disk.enabled);
+        assert_eq!(c.disk.measure, Measure::ProjectDir);
+        assert_eq!(c.disk.warn_mb, 250);
+        assert_eq!(c.disk.refresh_secs, 600);
+        assert_eq!(c.disk.timeout_ms, 2000);
+    }
+
+    #[test]
+    fn disk_partial_keeps_other_defaults() {
+        let c = Config::from_toml_str("[disk]\nwarn_mb = 100\n").unwrap();
+        assert_eq!(c.disk.warn_mb, 100);
+        assert!(c.disk.enabled); // untouched default
+        assert_eq!(c.disk.measure, Measure::Cwd); // untouched default
+        assert_eq!(c.disk.refresh_secs, 1800);
     }
 
     #[test]

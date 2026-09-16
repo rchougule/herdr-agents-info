@@ -30,3 +30,30 @@ assumed_width = 26   # assumed sidebar width in columns
 # indents differ from herdr's defaults:
 # line1_usable = 24
 # other_usable = 22
+
+[disk]
+# Per-pane disk footprint ($disk token, added to line 1 after the model). Shown
+# ONLY when a pane's footprint is at or above `warn_mb`, so it reads as an alert
+# for sessions that have grown heavy — not as always-on clutter. Add `$disk` to
+# your rows_by_agent.claude line-1 block to render it.
+enabled = true       # measure and report the $disk token
+measure = "cwd"      # cwd | transcript | project_dir  (see below)
+warn_mb = 500        # only show $disk when the footprint is >= this many MiB
+refresh_secs = 1800  # re-measure a cwd at most this often (its walk is cached)
+timeout_ms = 15000   # per-tree budget for a cwd walk; it bails rather than hang.
+                     # Runs off the sweep's critical path, so this can be
+                     # generous — a real 10–25 GB worktree takes ~8–10s to walk
+                     # cold, and too small a budget caches it as "unmeasurable".
+# measure options:
+#   "cwd"         — the pane's working directory (the git worktree checkout),
+#                   measured recursively. This is where the GB live
+#                   (node_modules / target / build output). The default. The
+#                   walk is done off the sweep's critical path (fast tokens are
+#                   never delayed), cached for `refresh_secs`, run in parallel
+#                   across distinct cwds, and bounded by `timeout_ms`.
+#   "transcript"  — this session's own .jsonl only (one stat; subagent turns are
+#                   recorded in it as sidechains, so they already count). Usually
+#                   only MB, so it rarely trips warn_mb.
+#   "project_dir" — sum of every .jsonl in this session's ~/.claude/projects/<dir>/.
+#                   Captures sibling sessions started in the same cwd, but
+#                   over-attributes that shared history to each pane sharing it.

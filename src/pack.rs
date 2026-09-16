@@ -2,13 +2,18 @@
 //! `docs/naming-framing.md` §7.2/§7.4 — see that document's §4 supersedes
 //! table). Every field has exactly one home; there is no packer float.
 //!
-//! Eight owned tokens, every one set-or-cleared on every report:
+//! Nine owned tokens, every one set-or-cleared on every report:
 //!
 //! ```text
-//! line 1: state_icon · workspace(bold) · $ctx_ok|$ctx_warn|$ctx_hot · $model(dim)
+//! line 1: state_icon · workspace(bold) · $ctx_ok|$ctx_warn|$ctx_hot · $model(dim) · $disk(dim)
 //! line 2:                                $tab(normal) · $d2(dim)
 //! line 3:                                $pane(normal) · $d3(dim)
 //! ```
+//!
+//! `$disk` (a pane's disk footprint, `src/disk.rs`) shares line 1 after the
+//! model, and is only ever set above the configured threshold — so it appears
+//! rarely, as an alert. When both are present under width pressure the model is
+//! cut before the disk alert is dropped.
 //!
 //! `model` never floats — it has one home, line 1, after the `%`. `tab` never
 //! appears on line 2's derived slot and never shares a line with `pane`; `pane`
@@ -28,7 +33,7 @@ use crate::config::LayoutConfig;
 const SEP: &str = " · ";
 const SEP_W: usize = 3;
 
-/// The 8 owned tokens for one Claude row (layout-design §3.1). Empty means
+/// The 9 owned tokens for one Claude row (layout-design §3.1). Empty means
 /// "cleared". This is what `render::report_plan` turns into a full
 /// set-or-clear report (plus the retired-key clears) and what the per-pane
 /// cache compares for the idempotent skip (§5.2 rule 5 of naming-framing.md).
@@ -38,6 +43,7 @@ pub struct RowTokens {
     pub ctx_warn: String,
     pub ctx_hot: String,
     pub model: String,
+    pub disk: String,
     pub tab: String,
     pub d2: String,
     pub pane: String,
@@ -84,7 +90,7 @@ fn fit_with_derived(identity: &str, derived: &str, budget: usize) -> (String, St
     (truncate(identity, avail), derived.to_string())
 }
 
-/// Pack a pane's fields into the 8 fixed tokens (layout-design §3.3).
+/// Pack a pane's fields into the 9 fixed tokens (layout-design §3.3).
 ///
 /// - `tab` — rung 1 (§3 of naming-framing.md), when shown.
 /// - `pane` — rung 2 (`pane_label ?? agent_name`), when shown.
@@ -102,6 +108,7 @@ pub fn pack(
     derived: &[&str],
     model: Option<&str>,
     pct: Option<u8>,
+    disk: Option<&str>,
     layout: &LayoutConfig,
     warn: u8,
     hot: u8,
@@ -119,16 +126,19 @@ pub fn pack(
     }
 
     // $model — line 1, after the workspace and the reserved `%`. Spare room
-    // is what's left of line1_usable after the (bold) workspace and the
-    // (width("NN%") + 1) reserve for the separator before it. If the model
-    // does not fit whole, tail-cut it; if there's essentially no room
-    // (spare <= 1), clear it. The `%` itself is never touched.
+    // is what's left of line1_usable after the (bold) workspace, the
+    // (width("NN%") + 1) reserve for the separator before it, and room reserved
+    // for a `$disk` alert (` · NNu`) so the model is cut before the disk alert
+    // is dropped. If the model does not fit whole, tail-cut it; if there's
+    // essentially no room (spare <= 1), clear it. The `%` itself is never touched.
+    let disk_reserve = disk.map_or(0, |d| SEP_W + width(d));
     if let Some(m) = model {
         let reserve = pct.map_or(0, |p| width(&format!("{p}%")) + 1);
         let spare = layout
             .line1_usable
             .saturating_sub(width(workspace))
-            .saturating_sub(reserve);
+            .saturating_sub(reserve)
+            .saturating_sub(disk_reserve);
         if spare > 1 {
             rt.model = if width(m) > spare {
                 truncate(m, spare)
@@ -137,6 +147,16 @@ pub fn pack(
             };
         }
         // else: spare <= 1 → cleared (default empty).
+    }
+
+    // $disk — line 1, after the model. Pre-gated and pre-formatted by the
+    // caller (only ever present above the threshold, so it appears rarely, as an
+    // alert). It is short and higher priority than the model: room for it was
+    // reserved out of the model's budget above (so the model is cut/cleared
+    // first), and it is always shown when present. On a pathologically narrow
+    // line herdr's own overflow handling is the final backstop.
+    if let Some(d) = disk {
+        rt.disk = d.to_string();
     }
 
     // $tab / $pane / $d2 / $d3 — the derived item follows the pane when one
@@ -174,7 +194,11 @@ mod tests {
         model: Option<&str>,
         pct: Option<u8>,
     ) -> RowTokens {
-        pack(ws, tab, pane, derived, model, pct, &layout(), 50, 80)
+        pack(ws, tab, pane, derived, model, pct, None, &layout(), 50, 80)
+    }
+
+    fn pk_disk(ws: &str, model: Option<&str>, pct: Option<u8>, disk: Option<&str>) -> RowTokens {
+        pack(ws, None, None, &[], model, pct, disk, &layout(), 50, 80)
     }
 
     // ── Basic assignment ───────────────────────────────────────────────────
@@ -334,6 +358,43 @@ mod tests {
         );
         assert_eq!(rt.ctx_ok, "42%");
         assert_eq!(rt.model, "");
+    }
+
+    // ── $disk (line 1, after model) ────────────────────────────────────────
+
+    #[test]
+    fn disk_shows_after_model_on_line1() {
+        let rt = pk_disk("study", Some("opus"), Some(12), Some("1.2G"));
+        assert_eq!(rt.model, "opus");
+        assert_eq!(rt.ctx_ok, "12%");
+        assert_eq!(rt.disk, "1.2G");
+    }
+
+    #[test]
+    fn disk_absent_when_not_provided() {
+        let rt = pk_disk("study", Some("opus"), Some(12), None);
+        assert_eq!(rt.disk, "");
+    }
+
+    #[test]
+    fn disk_alert_kept_and_model_yields_under_width_pressure() {
+        // The model's budget is squeezed by the reserved disk room, so it is cut
+        // or cleared, but the "1.2G" alert and the % both survive.
+        let rt = pk_disk("payments", Some("sonnet"), Some(60), Some("1.2G"));
+        assert_eq!(rt.disk, "1.2G", "the disk alert survives");
+        assert_eq!(rt.ctx_warn, "60%", "the % is never touched");
+        assert!(
+            width(&rt.model) < width("sonnet"),
+            "the model yields (cut or cleared) to reserve room for the alert"
+        );
+    }
+
+    #[test]
+    fn disk_shown_even_with_no_model() {
+        let rt = pk_disk("study", None, Some(60), Some("2.5G"));
+        assert_eq!(rt.model, "");
+        assert_eq!(rt.disk, "2.5G");
+        assert_eq!(rt.ctx_warn, "60%");
     }
 
     #[test]
