@@ -513,3 +513,63 @@ fn cache_round_trip_via_state_dir() {
         let _ = std::fs::remove_dir_all(d);
     }
 }
+
+#[test]
+fn custom_title_becomes_agent_name_and_overrides_pane_label() {
+    // A manual `/rename` (a `custom-title` line in the transcript) is read as the
+    // pane's agent name and, since an agent rename wins over a pane rename, shows
+    // as `A:<title>` — never the pane label.
+    let _g = ENV_LOCK.lock().unwrap();
+    let fx = scratch("ctf");
+    let cache_dir = scratch("ctc");
+    std::fs::write(
+        fx.join("w1:p1.jsonl"),
+        concat!(
+            r#"{"type":"custom-title","customTitle":"my-agent","sessionId":"s"}"#,
+            "\n",
+            r#"{"type":"assistant","message":{"model":"claude-opus-4-8","usage":{"input_tokens":2,"cache_read_input_tokens":100}}}"#,
+            "\n"
+        ),
+    )
+    .unwrap();
+
+    let fake = FakeClient {
+        agents: vec![AgentInfo {
+            pane_id: "w1:p1".into(),
+            workspace_id: "w1".into(),
+            tab_id: "t1".into(),
+            agent: Some("claude".into()),
+            ..Default::default()
+        }],
+        panes: vec![PaneInfo {
+            pane_id: "w1:p1".into(),
+            workspace_id: "w1".into(),
+            tab_id: "t1".into(),
+            label: Some("should-be-overridden".into()),
+            ..Default::default()
+        }],
+        tabs: vec![TabInfo {
+            tab_id: "t1".into(),
+            workspace_id: "w1".into(),
+            label: "sometab".into(),
+        }],
+        workspaces: vec![WorkspaceInfo {
+            workspace_id: "w1".into(),
+            label: "dash".into(),
+        }],
+    };
+
+    std::env::set_var("AGENTS_INFO_FIXTURE_DIR", &fx);
+    let cfg = Config::default();
+    let facts = app::gather(&fake).unwrap();
+    let outcomes = app::compute(&facts, &cfg, ReadScope::All, Some(&cache_dir));
+    std::env::remove_var("AGENTS_INFO_FIXTURE_DIR");
+
+    let t = tokens_of(&outcomes, "w1:p1");
+    assert_eq!(t.pane, "A:my-agent");
+    assert!(!t.pane.contains("should-be-overridden"));
+
+    for d in [&fx, &cache_dir] {
+        let _ = std::fs::remove_dir_all(d);
+    }
+}

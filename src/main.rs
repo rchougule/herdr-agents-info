@@ -247,9 +247,9 @@ fn run_doctor(client: &dyn HerdrClient, cfg: &Config) -> ExitCode {
                 );
                 match path {
                     Some(p) => {
-                        let usage = claude::transcript::read_last_usage(&p);
+                        let tail = claude::transcript::read_tail(&p);
                         println!("    transcript={}", p.display());
-                        match usage {
+                        match tail.usage {
                             Some(u) => {
                                 let window =
                                     claude::window::resolve_window(&u.model_id, u.used, cfg);
@@ -265,6 +265,12 @@ fn run_doctor(client: &dyn HerdrClient, cfg: &Config) -> ExitCode {
                             }
                             None => println!("    used=(no assistant usage yet)"),
                         }
+                        println!(
+                            "    custom_title={} (→ A: name when present)",
+                            tail.custom_title
+                                .as_deref()
+                                .unwrap_or("(none — not renamed)")
+                        );
                     }
                     None => println!("    transcript=(unresolved: no matching project dir)"),
                 }

@@ -26,6 +26,12 @@ pub struct PaneCache {
     /// Context percentage.
     #[serde(default)]
     pub pct: Option<u8>,
+    /// The pane's manual `/rename` title (`custom-title` from the transcript),
+    /// which feeds the `A:` rung-2 identity. Cached like `model`/`pct` so a
+    /// sibling's identity is computed on `enrich` without re-reading its
+    /// transcript.
+    #[serde(default)]
+    pub custom_title: Option<String>,
     /// Last measured disk footprint in bytes (raw; the `warn_mb` gate and
     /// human-readable formatting are applied at pack time, so a threshold change
     /// takes effect on the next compute without a re-measure). Every report
@@ -97,6 +103,7 @@ mod tests {
         let entry = PaneCache {
             model: Some("opus".into()),
             pct: Some(44),
+            custom_title: Some("caching-workloom-backend".into()),
             disk_bytes: Some(1_234_567),
             disk_measured_at: Some(1_700_000_000),
             tokens,

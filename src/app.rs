@@ -138,6 +138,10 @@ fn transcript_path(a: &AgentInfo) -> Option<PathBuf> {
 struct Meta {
     model: Option<String>,
     pct: Option<u8>,
+    /// The pane's manual `/rename` title (`custom-title`), the `A:` identity
+    /// source. Freshly read from the transcript when in scope, else the cache —
+    /// so a sibling's identity is computed on `enrich` without re-reading it.
+    custom_title: Option<String>,
     /// Raw disk footprint in bytes (the `warn_mb` gate + formatting are applied
     /// at pack time). Always read from the cache — the sweep's dedicated disk
     /// phase ([`refresh_disk`]) is the only place that measures, so no report is
@@ -145,27 +149,39 @@ struct Meta {
     disk_bytes: Option<u64>,
 }
 
-/// A pane's `(model, ctx%)`: freshly read from its transcript when in scope
-/// (Architecture), otherwise from the cache. `disk_bytes` always comes from the
-/// cache (never measured on a report's critical path).
+/// A pane's `(model, ctx%, custom_title)`: freshly read from its transcript when
+/// in scope (Architecture) via one tail scan, otherwise from the cache.
+/// `disk_bytes` always comes from the cache (never measured on a report's
+/// critical path).
 fn metadata(agent: &AgentInfo, scope: ReadScope, cfg: &Config, prev: Option<&PaneCache>) -> Meta {
-    let (model, pct) = if scope.reads(&agent.pane_id) {
+    let (model, pct, custom_title) = if scope.reads(&agent.pane_id) {
         match transcript_path(agent)
             .as_deref()
-            .and_then(claude::transcript::read_last_usage)
+            .map(claude::transcript::read_tail)
         {
-            Some(u) => {
-                let win = window::resolve_window(&u.model_id, u.used, cfg);
-                (Some(u.model_short()), Some(window::pct(u.used, win)))
+            Some(tail) => {
+                let (model, pct) = match tail.usage {
+                    Some(u) => {
+                        let win = window::resolve_window(&u.model_id, u.used, cfg);
+                        (Some(u.model_short()), Some(window::pct(u.used, win)))
+                    }
+                    None => (None, None),
+                };
+                (model, pct, tail.custom_title)
             }
-            None => (None, None),
+            None => (None, None, None),
         }
     } else {
-        (prev.and_then(|c| c.model.clone()), prev.and_then(|c| c.pct))
+        (
+            prev.and_then(|c| c.model.clone()),
+            prev.and_then(|c| c.pct),
+            prev.and_then(|c| c.custom_title.clone()),
+        )
     };
     Meta {
         model,
         pct,
+        custom_title,
         disk_bytes: prev.and_then(|c| c.disk_bytes),
     }
 }
@@ -193,16 +209,38 @@ pub fn compute(
     scope: ReadScope,
     cache_dir: Option<&Path>,
 ) -> Vec<PaneOutcome> {
-    let fields: Vec<PaneFields> = facts.iter().map(|f| f.fields.clone()).collect();
+    // Resolve each pane's metadata first (one transcript read per in-scope pane;
+    // cache otherwise). This must precede identity, because the manual `/rename`
+    // title lives in the transcript and feeds the rung-2 `A:` name.
+    let resolved: Vec<(Option<PaneCache>, Meta)> = facts
+        .iter()
+        .map(|f| {
+            let prev = cache_dir.and_then(|d| cache::load(d, &f.agent.pane_id));
+            let meta = metadata(&f.agent, scope, cfg, prev.as_ref());
+            (prev, meta)
+        })
+        .collect();
+
+    // Build the effective identity inputs: the agent name is the manual title
+    // when present, else herdr's `agent start`/rename name (agent rename wins →
+    // `A:`). Identity is then a pure function of this assembled snapshot.
+    let fields: Vec<PaneFields> = facts
+        .iter()
+        .zip(&resolved)
+        .map(|(f, (_prev, meta))| {
+            let mut fld = f.fields.clone();
+            fld.agent_name = meta.custom_title.clone().or(fld.agent_name);
+            fld
+        })
+        .collect();
     let rows = name::compute_rows(&fields);
 
     facts
         .iter()
         .zip(&rows)
-        .map(|(f, row)| {
+        .zip(&resolved)
+        .map(|((f, row), (prev, meta))| {
             let pane_id = &f.agent.pane_id;
-            let prev = cache_dir.and_then(|d| cache::load(d, pane_id));
-            let meta = metadata(&f.agent, scope, cfg, prev.as_ref());
 
             let model_for_pack = if cfg.show_model {
                 meta.model.as_deref()
@@ -232,6 +270,7 @@ pub fn compute(
                     &PaneCache {
                         model: meta.model.clone(),
                         pct: meta.pct,
+                        custom_title: meta.custom_title.clone(),
                         disk_bytes: meta.disk_bytes,
                         // Preserve the measurement timestamp — compute never
                         // measures; only refresh_disk sets it.

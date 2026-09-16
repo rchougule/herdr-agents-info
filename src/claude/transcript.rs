@@ -28,65 +28,129 @@ impl UsageEntry {
     }
 }
 
-/// Read the last usage entry from a transcript file, growing the tail window as
-/// needed. Returns `None` if the file cannot be read or no qualifying entry is
-/// found within the 16 MiB cap.
-pub fn read_last_usage(path: &Path) -> Option<UsageEntry> {
-    let mut file = File::open(path).ok()?;
-    let file_len = file.metadata().ok()?.len();
+/// The tail-derived facts from one transcript scan: the last real usage entry
+/// and the last manual `/rename` title.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct Tail {
+    pub usage: Option<UsageEntry>,
+    /// The latest `custom-title` value — Claude Code's manual `/rename`. `None`
+    /// for a never-renamed session; never the auto-generated `aiTitle`.
+    pub custom_title: Option<String>,
+}
+
+/// Read the transcript tail once, returning both the last usage entry and the
+/// last manual `/rename` title, growing the window ×4 up to the 16 MiB cap (for
+/// the usage). The custom title is taken from the same tail — its `custom-title`
+/// lines recur, so the latest sits near the end — adding no extra reads.
+pub fn read_tail(path: &Path) -> Tail {
+    let Ok(mut file) = File::open(path) else {
+        return Tail::default();
+    };
+    let Ok(meta) = file.metadata() else {
+        return Tail::default();
+    };
+    let file_len = meta.len();
     if file_len == 0 {
-        return None;
+        return Tail::default();
     }
 
     let mut window = INITIAL_WINDOW;
+    let mut custom_title: Option<String> = None;
     loop {
         let effective = window.min(file_len);
         let start = file_len - effective;
-        file.seek(SeekFrom::Start(start)).ok()?;
+        if file.seek(SeekFrom::Start(start)).is_err() {
+            return Tail {
+                usage: None,
+                custom_title,
+            };
+        }
         let mut buf = vec![0u8; effective as usize];
-        file.read_exact(&mut buf).ok()?;
-
-        // When we did not start at byte 0, the first line is likely partial; drop it.
-        if let Some(entry) = scan_tail(&buf, start > 0) {
-            return Some(entry);
+        if file.read_exact(&mut buf).is_err() {
+            return Tail {
+                usage: None,
+                custom_title,
+            };
         }
 
-        // Whole file already covered, or we hit the cap → give up.
+        // When we did not start at byte 0, the first line is likely partial; drop it.
+        let (usage, ct) = scan_tail_full(&buf, start > 0);
+        // The latest custom title sits at the tail, present in every window, so
+        // the first one we ever see is the right one — keep it across growth.
+        if custom_title.is_none() {
+            custom_title = ct;
+        }
+        if usage.is_some() {
+            return Tail {
+                usage,
+                custom_title,
+            };
+        }
+
+        // Whole file already covered, or we hit the cap → give up on usage.
         if effective >= file_len || window >= MAX_WINDOW {
-            return None;
+            return Tail {
+                usage: None,
+                custom_title,
+            };
         }
         window = (window.saturating_mul(4)).min(MAX_WINDOW);
     }
 }
 
-/// Scan a byte window from the end for the last qualifying assistant usage entry.
-/// `drop_first_partial` drops everything before the first newline (a line cut by
-/// the window boundary).
+/// Read the last usage entry from a transcript file (see [`read_tail`]).
+pub fn read_last_usage(path: &Path) -> Option<UsageEntry> {
+    read_tail(path).usage
+}
+
+/// Scan a byte window from the end for the last qualifying assistant usage entry
+/// (usage-only; see [`scan_tail_full`]). Kept for callers/tests that only need
+/// the usage.
 pub fn scan_tail(buf: &[u8], drop_first_partial: bool) -> Option<UsageEntry> {
+    scan_tail_full(buf, drop_first_partial).0
+}
+
+/// Scan a byte window from the end for the last usage entry and the last
+/// `custom-title`, parsing each line once. `drop_first_partial` drops everything
+/// before the first newline (a line cut by the window boundary).
+pub fn scan_tail_full(
+    buf: &[u8],
+    drop_first_partial: bool,
+) -> (Option<UsageEntry>, Option<String>) {
     let mut slice = buf;
     if drop_first_partial {
         if let Some(nl) = slice.iter().position(|&b| b == b'\n') {
             slice = &slice[nl + 1..];
         } else {
             // No newline in the window at all: the whole thing is one partial line.
-            return None;
+            return (None, None);
         }
     }
+    let mut usage = None;
+    let mut custom_title = None;
     for line in slice.split(|&b| b == b'\n').rev() {
         if line.is_empty() {
             continue;
         }
-        if let Some(entry) = parse_line(line) {
-            return Some(entry);
+        let Ok(v) = serde_json::from_slice::<serde_json::Value>(line) else {
+            continue;
+        };
+        if usage.is_none() {
+            usage = usage_from_value(&v);
+        }
+        if custom_title.is_none() {
+            custom_title = custom_title_from_value(&v);
+        }
+        if usage.is_some() && custom_title.is_some() {
+            break;
         }
     }
-    None
+    (usage, custom_title)
 }
 
-/// Parse a single JSONL line, returning a `UsageEntry` only when it is a
-/// non-sidechain assistant entry carrying `message.usage`.
-fn parse_line(line: &[u8]) -> Option<UsageEntry> {
-    let v: serde_json::Value = serde_json::from_slice(line).ok()?;
+/// A `UsageEntry` from a parsed entry, only when it is a non-sidechain assistant
+/// entry carrying `message.usage`.
+fn usage_from_value(v: &serde_json::Value) -> Option<UsageEntry> {
     if v.get("type").and_then(|t| t.as_str()) != Some("assistant") {
         return None;
     }
@@ -107,8 +171,8 @@ fn parse_line(line: &[u8]) -> Option<UsageEntry> {
     // Claude Code writes synthetic assistant messages (interrupted turns, error
     // placeholders, compact boundaries) with `model: "<synthetic>"` and a usage
     // block that does not reflect a real model or the live context. Skipping
-    // them makes `scan_tail` fall back to the last *real* assistant usage,
-    // instead of surfacing a `<synth…>` model at a bogus 0%.
+    // them makes the scan fall back to the last *real* assistant usage, instead
+    // of surfacing a `<synth…>` model at a bogus 0%.
     if model_id.starts_with('<') {
         return None;
     }
@@ -116,6 +180,20 @@ fn parse_line(line: &[u8]) -> Option<UsageEntry> {
         used,
         model_id: model_id.to_string(),
     })
+}
+
+/// The manual `/rename` title from a parsed entry: a `{"type":"custom-title",
+/// "customTitle":"…"}` line. The auto-generated `aiTitle` is deliberately not
+/// read.
+fn custom_title_from_value(v: &serde_json::Value) -> Option<String> {
+    if v.get("type").and_then(|t| t.as_str()) != Some("custom-title") {
+        return None;
+    }
+    v.get("customTitle")
+        .and_then(|t| t.as_str())
+        .map(str::trim)
+        .filter(|s| !s.is_empty())
+        .map(str::to_string)
 }
 
 /// Model short form: opus/sonnet/haiku, else the segment after
@@ -179,6 +257,37 @@ mod tests {
         let e = scan_tail(&bytes, false).unwrap();
         assert_eq!(e.used, 152);
         assert_eq!(e.model_id, "claude-opus-4-8");
+    }
+
+    #[test]
+    fn tail_extracts_custom_title_and_ignores_ai_title() {
+        // aiTitle (auto) must be ignored; the later custom-title (manual /rename)
+        // is returned, alongside the last usage — from one scan.
+        let bytes = concat!(
+            r#"{"type":"aiTitle","aiTitle":"Auto Summary We Ignore"}"#,
+            "\n",
+            r#"{"type":"custom-title","customTitle":"caching-workloom-backend","sessionId":"s"}"#,
+            "\n",
+            r#"{"type":"assistant","message":{"model":"claude-opus-4-8","usage":{"input_tokens":2,"cache_read_input_tokens":100,"cache_creation_input_tokens":50}}}"#,
+            "\n"
+        )
+        .as_bytes()
+        .to_vec();
+        let (usage, ct) = scan_tail_full(&bytes, false);
+        assert_eq!(ct.as_deref(), Some("caching-workloom-backend"));
+        assert_eq!(usage.unwrap().used, 152);
+    }
+
+    #[test]
+    fn tail_custom_title_is_none_when_absent() {
+        let bytes = concat!(
+            r#"{"type":"assistant","message":{"model":"claude-opus-4-8","usage":{"input_tokens":10}}}"#,
+            "\n"
+        )
+        .as_bytes()
+        .to_vec();
+        let (_usage, ct) = scan_tail_full(&bytes, false);
+        assert_eq!(ct, None);
     }
 
     #[test]
