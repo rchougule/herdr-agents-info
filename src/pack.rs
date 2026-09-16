@@ -4,28 +4,36 @@
 //! Nine owned tokens, every one set-or-cleared on every report:
 //!
 //! ```text
-//! line 1: state_icon · workspace(bold) · $ctx_ok|$ctx_warn|$ctx_hot · $model(dim)
-//! line 2:                                $tab(normal) · $d2(dim)
-//! line 3:                                $pane(normal) · $d3(dim)
-//! line 4:                                $disk
+//! line 1: state_icon · workspace(bold)
+//! line 2:             $tab(normal) · $d2(dim)
+//! line 3:             $pane(normal) · $d3(dim)
+//! line 4:             $disk · $model(dim) · $ctx_ok|$ctx_warn|$ctx_hot(color)
 //! ```
 //!
-//! `$disk` (a pane's disk footprint, `src/disk.rs`) has its own line so it never
-//! competes with — and never truncates — the workspace leader on line 1. It is
-//! only ever set above the configured threshold, so the line appears rarely, as
-//! an alert, and herdr drops it entirely when empty.
+//! The **workspace leader has line 1 to itself** (herdr's own bold token), so it
+//! is never crowded or truncated by metadata. The metadata (`disk · model ·
+//! ctx%`) lives on line 4; each field carries an optional configured icon.
+//! `$disk` is only ever set above the configured threshold, so it appears
+//! rarely, as an alert, and herdr drops it when empty.
 //!
-//! `model` never floats — it has one home, line 1, after the `%`. `tab` never
-//! appears on line 2's derived slot and never shares a line with `pane`; `pane`
-//! never appears on line 2. A derived item (splitter §4 / hint §6) sits after
-//! the pane when there is one, else after the tab (`$d3` vs `$d2`) — never
-//! both. herdr draws ` · ` only between visible tokens and drops empty lines,
-//! so empty tokens cost nothing.
+//! `tab` never shares a line with `pane`; a derived item (splitter §4 / hint §6)
+//! sits after the pane when there is one, else after the tab (`$d3` vs `$d2`) —
+//! never both. herdr draws ` · ` only between visible tokens and drops empty
+//! lines, so empty tokens cost nothing.
 
 use serde::{Deserialize, Serialize};
 
 use crate::claude::window::{self, CtxLevel};
-use crate::config::LayoutConfig;
+use crate::config::{IconConfig, LayoutConfig};
+
+/// Prepend a configured icon (`"💾"`) to a value (`"9.6G"` → `"💾 9.6G"`), or
+/// return the value unchanged when no icon is set for that field.
+fn with_icon(icon: &Option<String>, value: &str) -> String {
+    match icon {
+        Some(i) => format!("{i} {value}"),
+        None => value.to_string(),
+    }
+}
 
 /// The separator herdr renders between visible tokens (` · `, 3 columns), and
 /// the one the packer joins multiple derived items with. Mirrored here so the
@@ -91,18 +99,19 @@ fn fit_with_derived(identity: &str, derived: &str, budget: usize) -> (String, St
 }
 
 /// Pack a pane's fields into the 9 fixed tokens (`docs/DESIGN.md` Placement).
+/// The workspace leader is herdr's own built-in token on line 1 and is not
+/// packed here; the plugin only fills the tokens below.
 ///
 /// - `tab` — rung 1 (§3), when shown.
 /// - `pane` — rung 2 (`agent_name ?? pane_label`), when shown.
 /// - `derived` — splitters (§4) / hint (§6), in order; joined by ` · ` and
 ///   assigned to `d3` when a pane is present, else `d2`.
-/// - `model` — the short model form (`opus`), when known and enabled. Anchored
-///   to line 1 beside `ctx%`; tail-cut or cleared there, never moved.
+/// - `model` — the short model form (`opus`), when known and enabled. On the
+///   metadata line (`disk · model · ctx%`), with its optional icon.
 /// - `pct` — context percentage; when present, colours `$ctx_ok`/`warn`/`hot`
-///   by threshold. Never cut, never moved.
+///   by threshold.
 #[allow(clippy::too_many_arguments)]
 pub fn pack(
-    workspace: &str,
     tab: Option<&str>,
     pane: Option<&str>,
     derived: &[&str],
@@ -110,14 +119,19 @@ pub fn pack(
     pct: Option<u8>,
     disk: Option<&str>,
     layout: &LayoutConfig,
+    icons: &IconConfig,
     warn: u8,
     hot: u8,
 ) -> RowTokens {
     let mut rt = RowTokens::default();
 
-    // $ctx_* — one of three, by threshold (never cut, never moved).
+    // Metadata line (`disk · model · ctx%`): all short, on their own line, so
+    // none is truncated here — the workspace has line 1 to itself and is never
+    // cut for them. Each carries its configured icon when set.
+
+    // $ctx_* — one of three, by threshold. Never moved.
     if let Some(p) = pct {
-        let value = format!("{p}%");
+        let value = with_icon(&icons.context, &format!("{p}%"));
         match window::select(p, warn, hot) {
             CtxLevel::Ok => rt.ctx_ok = value,
             CtxLevel::Warn => rt.ctx_warn = value,
@@ -125,34 +139,15 @@ pub fn pack(
         }
     }
 
-    // $model — line 1, after the workspace and the reserved `%`. Spare room is
-    // what's left of line1_usable after the (bold) workspace and the
-    // (width("NN%") + 1) reserve for the separator before it. The workspace is
-    // never cut for the model — the model is tail-cut, or cleared when there is
-    // essentially no room (spare <= 1). The `%` itself is never touched. `$disk`
-    // is on its own line, so it never enters this budget.
+    // $model — the short model form, set as-is (model_short already caps it).
     if let Some(m) = model {
-        let reserve = pct.map_or(0, |p| width(&format!("{p}%")) + 1);
-        let spare = layout
-            .line1_usable
-            .saturating_sub(width(workspace))
-            .saturating_sub(reserve);
-        if spare > 1 {
-            rt.model = if width(m) > spare {
-                truncate(m, spare)
-            } else {
-                m.to_string()
-            };
-        }
-        // else: spare <= 1 → cleared (default empty).
+        rt.model = with_icon(&icons.model, m);
     }
 
-    // $disk — its own line (never line 1), pre-gated and pre-formatted by the
-    // caller (only ever present above the threshold, so the line appears rarely,
-    // as an alert). Short and on a line of its own, so it needs no truncation and
-    // never squeezes the workspace or the model.
+    // $disk — pre-gated and pre-formatted by the caller (only ever present above
+    // the threshold, so the line appears rarely, as an alert).
     if let Some(d) = disk {
-        rt.disk = d.to_string();
+        rt.disk = with_icon(&icons.disk, d);
     }
 
     // $tab / $pane / $d2 / $d3 — the derived item follows the pane when one
@@ -182,19 +177,47 @@ mod tests {
         LayoutConfig::default() // line1_usable 24, other_usable 22
     }
 
+    fn no_icons() -> IconConfig {
+        IconConfig::default()
+    }
+
+    // `_ws` is kept for readable call sites; the workspace is herdr's own token
+    // and no longer an input to the packer.
     fn pk(
-        ws: &str,
+        _ws: &str,
         tab: Option<&str>,
         pane: Option<&str>,
         derived: &[&str],
         model: Option<&str>,
         pct: Option<u8>,
     ) -> RowTokens {
-        pack(ws, tab, pane, derived, model, pct, None, &layout(), 50, 80)
+        pack(
+            tab,
+            pane,
+            derived,
+            model,
+            pct,
+            None,
+            &layout(),
+            &no_icons(),
+            50,
+            80,
+        )
     }
 
-    fn pk_disk(ws: &str, model: Option<&str>, pct: Option<u8>, disk: Option<&str>) -> RowTokens {
-        pack(ws, None, None, &[], model, pct, disk, &layout(), 50, 80)
+    fn pk_disk(_ws: &str, model: Option<&str>, pct: Option<u8>, disk: Option<&str>) -> RowTokens {
+        pack(
+            None,
+            None,
+            &[],
+            model,
+            pct,
+            disk,
+            &layout(),
+            &no_icons(),
+            50,
+            80,
+        )
     }
 
     // ── Basic assignment ───────────────────────────────────────────────────
@@ -331,21 +354,11 @@ mod tests {
     }
 
     #[test]
-    fn long_workspace_cuts_model_not_pct() {
-        // 17-char workspace leaves spare=3 at the default budgets (24 - 17 -
-        // (width("42%")+1)=4): "opus" (4) doesn't fit in 3, so it is tail-cut
-        // to "op…" — never cleared, and the `%` is never touched.
-        let rt = pk("xxxxxxxxxxxxxxxxx", None, None, &[], Some("opus"), Some(42));
-        assert_eq!(rt.ctx_ok, "42%");
-        assert_eq!(rt.model, "op…");
-    }
-
-    #[test]
-    fn long_workspace_clears_model_when_no_room() {
-        // 21-char workspace leaves spare=-1 (saturating to 0) → cleared, not
-        // truncated to an empty/degenerate string.
+    fn model_unaffected_by_workspace_length() {
+        // The workspace has line 1 to itself; the model lives on the metadata
+        // line, so a long workspace never cuts or clears it.
         let rt = pk(
-            "a-very-long-workspace",
+            "a-very-long-workspace-name",
             None,
             None,
             &[],
@@ -353,7 +366,31 @@ mod tests {
             Some(42),
         );
         assert_eq!(rt.ctx_ok, "42%");
-        assert_eq!(rt.model, "");
+        assert_eq!(rt.model, "opus");
+    }
+
+    #[test]
+    fn icons_prepend_on_the_metadata_fields() {
+        let icons = IconConfig {
+            disk: Some("D".into()),
+            model: Some("M".into()),
+            context: Some("C".into()),
+        };
+        let rt = pack(
+            None,
+            None,
+            &[],
+            Some("opus"),
+            Some(42),
+            Some("9.6G"),
+            &layout(),
+            &icons,
+            50,
+            80,
+        );
+        assert_eq!(rt.model, "M opus");
+        assert_eq!(rt.ctx_ok, "C 42%");
+        assert_eq!(rt.disk, "D 9.6G");
     }
 
     // ── $disk (its own line) ───────────────────────────────────────────────

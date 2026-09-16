@@ -84,24 +84,25 @@ reflow. So the **plugin** assigns every field a fixed home — only *presence* v
 position (`src/pack.rs`, `src/render.rs`):
 
 ```
-line 1   workspace(bold) · [ctx_ok|ctx_warn|ctx_hot](color) · model(dim)
+line 1   workspace(bold)                              ← the leader has this line to itself
 line 2   T:tab(normal) · d2(dim)
 line 3   P:pane|A:agent(normal) · d3(dim)
-line 4   disk        (its own line, so it never crowds the workspace)
+line 4   [icon] disk · [icon] model(dim) · [icon] ctx_ok|ctx_warn|ctx_hot(color)
 ```
 
-The **9 owned tokens**, always set-or-cleared in this order: `ctx_ok`, `ctx_warn`,
-`ctx_hot`, `model` (line 1), `tab`, `d2` (line 2), `pane`, `d3` (line 3), `disk` (line 4).
-Derived
-items (§4/§6) join with ` · ` and land in `d3` when a pane is present, else `d2`. Exactly
-one of the three `ctx_*` is ever set, so exactly one color shows.
+The workspace is herdr's own bold token on line 1, alone, so it is **never crowded or
+truncated** by metadata. The metadata line (`disk · model · ctx%`) carries an optional
+per-field icon (`[icons]` in the config). The **9 owned tokens** the plugin fills, always
+set-or-cleared in this order: `ctx_ok`, `ctx_warn`, `ctx_hot`, `model`, `tab`, `d2`, `pane`,
+`d3`, `disk`. Derived items (§4/§6) join with ` · ` and land in `d3` when a pane is present,
+else `d2`. Exactly one of the three `ctx_*` is ever set, so exactly one color shows.
 
 Widths come from an **assumed** sidebar width (herdr never reports the live width): default
-26 cols → 24 usable on line 1, 22 on lines 2–3 (`[layout]` in the config). Truncation is a
-last resort (tail-cut with `…`); the model is anchored to line 1 and is tail-cut or cleared
-there before identity is ever cut for it; a derived item is kept whole and the identity item
-beside it is cut instead. Colour means urgency, weight (bold > normal > dim) means
-hierarchy, so both read on light and dark themes.
+26 cols → 22 usable on the identity lines (`[layout]` in the config). Only the identity
+lines (tab/pane + derived) truncate — tail-cut with `…` as a last resort, a derived item
+kept whole and the identity item beside it cut instead. The metadata fields are short and
+sit on their own line, so they are not truncated by the plugin. Colour means urgency, weight
+(bold > normal > dim) means hierarchy, so both read on light and dark themes.
 
 ## Metadata
 

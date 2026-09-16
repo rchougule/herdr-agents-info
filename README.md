@@ -57,26 +57,26 @@ with the whole block below, then run `herdr server reload-config`:
 ```toml
 [ui.sidebar.agents.rows_by_agent]
 claude = [
-  ["state_icon",
-    { token = "workspace",  bold = true },
-    { token = "$ctx_ok",    fg = "#a6e3a1", bold = true },
-    { token = "$ctx_warn",  fg = "#f9e2af", bold = true },
-    { token = "$ctx_hot",   fg = "#f38ba8", bold = true },
-    { token = "$model",     dim = true }],
+  ["state_icon", { token = "workspace", bold = true }],
   [{ token = "$tab",  dim = false }, { token = "$d2", dim = true }],
   [{ token = "$pane", dim = false }, { token = "$d3", dim = true }],
-  [{ token = "$disk", fg = "#f9e2af" }],
+  [{ token = "$disk",     fg = "#f9e2af" },
+   { token = "$model",    dim = true },
+   { token = "$ctx_ok",   fg = "#a6e3a1" },
+   { token = "$ctx_warn", fg = "#f9e2af" },
+   { token = "$ctx_hot",  fg = "#f38ba8", bold = true }],
 ]
 ```
 
-Each field has one fixed home: line 1 is metadata (workspace · context % · model), lines
-2–3 are identity (tab, pane, and a derived distinguisher `$d2`/`$d3`), and line 4 is
-`$disk` on its own so it never crowds — or truncates — the workspace. Only one of
-`$ctx_ok`/`$ctx_warn`/`$ctx_hot` is ever set, so exactly one color shows. Tokens the plugin
-does not set render as nothing, so rows collapse gracefully — `$disk` in particular only
-appears when a session is heavy (see [Disk footprint](#disk-footprint)).
+Each field has one fixed home. **Line 1 is the workspace alone** — the primary identity, so
+it is never crowded or truncated. Lines 2–3 are the tab and pane (with a derived
+distinguisher `$d2`/`$d3`). **Line 4 is the metadata** — `disk · model · context %`. Only
+one of `$ctx_ok`/`$ctx_warn`/`$ctx_hot` is ever set, so exactly one color shows; tokens the
+plugin does not set render as nothing, so rows collapse gracefully (`$disk` appears only when
+a session is heavy — see [Disk footprint](#disk-footprint)).
 
-The full rules live in [`docs/DESIGN.md`](docs/DESIGN.md).
+Want a label per metadata field? Add icons — see [Icons](#icons). The full rules live in
+[`docs/DESIGN.md`](docs/DESIGN.md).
 
 ### Light and dark themes
 
@@ -131,6 +131,22 @@ timeout_ms  = 15000         # give up on a single tree walk after this long
 
 Set `enabled = false` to turn the whole thing off. Run `herdr server reload-config` after
 editing.
+
+## Icons
+
+The metadata line (`disk · model · context %`) can carry a per-field icon so a glance says
+what each value is. Set any glyph your terminal renders — emoji, a Nerd Font glyph, or a
+plain symbol. Absent/empty means no icon for that field.
+
+```toml
+[icons]
+disk    = "💾"
+model   = "🧠"
+context = "📊"
+```
+
+Renders as `💾 9.6G · 🧠 fable · 📊 44%`. These sit on their own line, so double-width emoji
+do not misalign anything. Run `herdr server reload-config` after editing.
 
 ## Actions & troubleshooting
 

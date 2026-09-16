@@ -250,7 +250,6 @@ pub fn compute(
             let disk_str = disk_token(meta.disk_bytes, cfg);
             let derived: Vec<&str> = row.derived.iter().map(String::as_str).collect();
             let tokens = pack::pack(
-                &row.workspace,
                 row.tab.as_deref(),
                 row.pane.as_deref(),
                 &derived,
@@ -258,6 +257,7 @@ pub fn compute(
                 meta.pct,
                 disk_str.as_deref(),
                 &cfg.layout,
+                &cfg.icons,
                 cfg.warn,
                 cfg.hot,
             );

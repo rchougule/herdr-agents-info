@@ -31,11 +31,20 @@ assumed_width = 26   # assumed sidebar width in columns
 # line1_usable = 24
 # other_usable = 22
 
+[icons]
+# Optional per-field icons on the metadata line (disk · model · context %), so a
+# glance says what each value is. Any glyph the terminal renders — emoji, Nerd
+# Font, or a plain symbol. Absent/empty = no icon for that field. They sit on
+# their own line, so double-width emoji do not misalign anything.
+# disk    = "💾"       # → "💾 9.6G"
+# model   = "🧠"       # → "🧠 fable"
+# context = "📊"       # → "📊 44%"
+
 [disk]
-# Per-pane disk footprint ($disk token, added to line 1 after the model). Shown
-# ONLY when a pane's footprint is at or above `warn_mb`, so it reads as an alert
-# for sessions that have grown heavy — not as always-on clutter. Add `$disk` to
-# your rows_by_agent.claude line-1 block to render it.
+# Per-pane disk footprint ($disk token, on the metadata line). Shown ONLY when a
+# pane's footprint is at or above `warn_mb`, so it reads as an alert for sessions
+# that have grown heavy — not as always-on clutter. Add `$disk` to your
+# rows_by_agent.claude metadata line to render it.
 enabled = true       # measure and report the $disk token
 measure = "cwd"      # cwd | transcript | project_dir  (see below)
 warn_mb = 500        # only show $disk when the footprint is >= this many MiB

@@ -92,6 +92,16 @@ impl Default for LayoutConfig {
     }
 }
 
+/// Optional per-field icons prepended on the metadata line (`disk · model ·
+/// ctx%`), so a glance says what each value is. Any glyph the terminal renders
+/// (emoji, Nerd Font, a plain symbol). `None`/absent = no icon for that field.
+#[derive(Debug, Clone, Default)]
+pub struct IconConfig {
+    pub disk: Option<String>,
+    pub model: Option<String>,
+    pub context: Option<String>,
+}
+
 #[derive(Debug, Clone)]
 pub struct Config {
     pub login: LoginMode,
@@ -102,6 +112,7 @@ pub struct Config {
     pub auto_promote_1m: bool,
     pub by_model: HashMap<String, u64>,
     pub layout: LayoutConfig,
+    pub icons: IconConfig,
     pub disk: DiskConfig,
 }
 
@@ -116,6 +127,7 @@ impl Default for Config {
             auto_promote_1m: true,
             by_model: HashMap::new(),
             layout: LayoutConfig::default(),
+            icons: IconConfig::default(),
             disk: DiskConfig::default(),
         }
     }
@@ -133,7 +145,16 @@ struct RawConfig {
     #[serde(default)]
     layout: RawLayout,
     #[serde(default)]
+    icons: RawIcons,
+    #[serde(default)]
     disk: RawDisk,
+}
+
+#[derive(Debug, Default, Deserialize)]
+struct RawIcons {
+    disk: Option<String>,
+    model: Option<String>,
+    context: Option<String>,
 }
 
 #[derive(Debug, Default, Deserialize)]
@@ -206,6 +227,11 @@ impl Config {
                         .other_usable
                         .unwrap_or_else(|| assumed.saturating_sub(4)),
                 }
+            },
+            icons: IconConfig {
+                disk: raw.icons.disk.filter(|s| !s.trim().is_empty()),
+                model: raw.icons.model.filter(|s| !s.trim().is_empty()),
+                context: raw.icons.context.filter(|s| !s.trim().is_empty()),
             },
             disk: DiskConfig {
                 enabled: raw.disk.enabled.unwrap_or(d.disk.enabled),
