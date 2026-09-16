@@ -106,9 +106,19 @@ fn parse_line(line: &[u8]) -> Option<UsageEntry> {
     let model_id = message
         .get("model")
         .and_then(|m| m.as_str())
-        .unwrap_or("")
-        .to_string();
-    Some(UsageEntry { used, model_id })
+        .unwrap_or("");
+    // Claude Code writes synthetic assistant messages (interrupted turns, error
+    // placeholders, compact boundaries) with `model: "<synthetic>"` and a usage
+    // block that does not reflect a real model or the live context. Skipping
+    // them makes `scan_tail` fall back to the last *real* assistant usage,
+    // instead of surfacing a `<synth…>` model at a bogus 0%.
+    if model_id.starts_with('<') {
+        return None;
+    }
+    Some(UsageEntry {
+        used,
+        model_id: model_id.to_string(),
+    })
 }
 
 /// Model short form (PLAN §5.2): opus/sonnet/haiku, else the segment after
@@ -172,6 +182,31 @@ mod tests {
         let e = scan_tail(&bytes, false).unwrap();
         assert_eq!(e.used, 152);
         assert_eq!(e.model_id, "claude-opus-4-8");
+    }
+
+    #[test]
+    fn skips_synthetic_model_entries() {
+        // A synthetic tail entry (interrupted turn) must be skipped so the last
+        // real assistant usage is reported, not `<synthetic>` at a bogus 0%.
+        let bytes = concat!(
+            r#"{"type":"assistant","message":{"model":"claude-opus-4-8","usage":{"input_tokens":2,"cache_read_input_tokens":100,"cache_creation_input_tokens":50}}}"#,
+            "\n",
+            r#"{"type":"assistant","message":{"model":"<synthetic>","usage":{"input_tokens":0,"cache_read_input_tokens":0,"cache_creation_input_tokens":0}}}"#,
+            "\n"
+        )
+        .as_bytes()
+        .to_vec();
+        let e = scan_tail(&bytes, false).unwrap();
+        assert_eq!(e.model_id, "claude-opus-4-8");
+        assert_eq!(e.used, 152);
+    }
+
+    #[test]
+    fn synthetic_tail_fixture_falls_back_to_real_usage() {
+        let e = read_last_usage(&fixtures().join("synthetic_tail.jsonl"))
+            .expect("real usage behind the synthetic tail");
+        assert_eq!(e.model_short(), "opus");
+        assert_eq!(e.used, 88000); // 2 + 80000 + 7998
     }
 
     #[test]
