@@ -77,15 +77,29 @@ when) and [`docs/layout-design.md`](docs/layout-design.md) (where it lands).
 ### Light and dark themes
 
 Hierarchy is carried by **weight** (bold workspace, dim model/derived), which reads on any
-background — so the layout works in light and dark alike. Color only signals urgency, and
-those three hexes are the whole theme surface. The block above is catppuccin **mocha**
-(dark); for a light background swap the three `$ctx_*` colors to catppuccin **latte**:
+background — so the layout itself works in light and dark alike. The only thing that needs
+to match your terminal is the three `$ctx_*` colors. The recipe above ships tuned for a
+**dark** terminal (catppuccin mocha).
+
+**To retheme:** in the recipe above, change only the `fg` hex on the three `$ctx_*` lines —
+leave everything else (including `bold = true`) as is. Then run `herdr server reload-config`.
+
+| token | when it shows | dark (default) | light |
+| --- | --- | --- | --- |
+| `$ctx_ok`   | context under 50% | `#a6e3a1` | `#40a02b` |
+| `$ctx_warn` | context 50–79%    | `#f9e2af` | `#df8e1d` |
+| `$ctx_hot`  | context 80%+      | `#f38ba8` | `#d20f39` |
+
+So on a **light** terminal the three lines become:
 
 ```toml
     { token = "$ctx_ok",    fg = "#40a02b", bold = true },
     { token = "$ctx_warn",  fg = "#df8e1d", bold = true },
     { token = "$ctx_hot",   fg = "#d20f39", bold = true },
 ```
+
+**Any other theme:** keep the meaning — `$ctx_ok` a green, `$ctx_warn` an amber, `$ctx_hot`
+a red, each with enough contrast against your background — and plug in that theme's hexes.
 
 ## Known limitations
 
