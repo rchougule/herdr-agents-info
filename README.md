@@ -62,18 +62,19 @@ claude = [
     { token = "$ctx_ok",    fg = "#a6e3a1", bold = true },
     { token = "$ctx_warn",  fg = "#f9e2af", bold = true },
     { token = "$ctx_hot",   fg = "#f38ba8", bold = true },
-    { token = "$model",     dim = true },
-    { token = "$disk",      fg = "#f9e2af" }],
+    { token = "$model",     dim = true }],
   [{ token = "$tab",  dim = false }, { token = "$d2", dim = true }],
   [{ token = "$pane", dim = false }, { token = "$d3", dim = true }],
+  [{ token = "$disk", fg = "#f9e2af" }],
 ]
 ```
 
-Each field has one fixed home: line 1 is metadata (workspace · context % · model · disk),
-lines 2–3 are identity (tab, pane, and a derived distinguisher `$d2`/`$d3`). Only one
-of `$ctx_ok`/`$ctx_warn`/`$ctx_hot` is ever set, so exactly one color shows. Tokens the
-plugin does not set render as nothing, so rows collapse gracefully — `$disk` in particular
-only appears when a session is heavy (see [Disk footprint](#disk-footprint)).
+Each field has one fixed home: line 1 is metadata (workspace · context % · model), lines
+2–3 are identity (tab, pane, and a derived distinguisher `$d2`/`$d3`), and line 4 is
+`$disk` on its own so it never crowds — or truncates — the workspace. Only one of
+`$ctx_ok`/`$ctx_warn`/`$ctx_hot` is ever set, so exactly one color shows. Tokens the plugin
+does not set render as nothing, so rows collapse gracefully — `$disk` in particular only
+appears when a session is heavy (see [Disk footprint](#disk-footprint)).
 
 The full rules live in [`docs/DESIGN.md`](docs/DESIGN.md).
 

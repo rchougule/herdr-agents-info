@@ -84,13 +84,15 @@ reflow. So the **plugin** assigns every field a fixed home — only *presence* v
 position (`src/pack.rs`, `src/render.rs`):
 
 ```
-line 1   workspace(bold) · [ctx_ok|ctx_warn|ctx_hot](color) · model(dim) · disk
+line 1   workspace(bold) · [ctx_ok|ctx_warn|ctx_hot](color) · model(dim)
 line 2   T:tab(normal) · d2(dim)
 line 3   P:pane|A:agent(normal) · d3(dim)
+line 4   disk        (its own line, so it never crowds the workspace)
 ```
 
 The **9 owned tokens**, always set-or-cleared in this order: `ctx_ok`, `ctx_warn`,
-`ctx_hot`, `model`, `disk` (line 1), `tab`, `d2` (line 2), `pane`, `d3` (line 3). Derived
+`ctx_hot`, `model` (line 1), `tab`, `d2` (line 2), `pane`, `d3` (line 3), `disk` (line 4).
+Derived
 items (§4/§6) join with ` · ` and land in `d3` when a pane is present, else `d2`. Exactly
 one of the three `ctx_*` is ever set, so exactly one color shows.
 

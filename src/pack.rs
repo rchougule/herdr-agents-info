@@ -4,15 +4,16 @@
 //! Nine owned tokens, every one set-or-cleared on every report:
 //!
 //! ```text
-//! line 1: state_icon · workspace(bold) · $ctx_ok|$ctx_warn|$ctx_hot · $model(dim) · $disk(dim)
+//! line 1: state_icon · workspace(bold) · $ctx_ok|$ctx_warn|$ctx_hot · $model(dim)
 //! line 2:                                $tab(normal) · $d2(dim)
 //! line 3:                                $pane(normal) · $d3(dim)
+//! line 4:                                $disk
 //! ```
 //!
-//! `$disk` (a pane's disk footprint, `src/disk.rs`) shares line 1 after the
-//! model, and is only ever set above the configured threshold — so it appears
-//! rarely, as an alert. When both are present under width pressure the model is
-//! cut before the disk alert is dropped.
+//! `$disk` (a pane's disk footprint, `src/disk.rs`) has its own line so it never
+//! competes with — and never truncates — the workspace leader on line 1. It is
+//! only ever set above the configured threshold, so the line appears rarely, as
+//! an alert, and herdr drops it entirely when empty.
 //!
 //! `model` never floats — it has one home, line 1, after the `%`. `tab` never
 //! appears on line 2's derived slot and never shares a line with `pane`; `pane`
@@ -124,20 +125,18 @@ pub fn pack(
         }
     }
 
-    // $model — line 1, after the workspace and the reserved `%`. Spare room
-    // is what's left of line1_usable after the (bold) workspace, the
-    // (width("NN%") + 1) reserve for the separator before it, and room reserved
-    // for a `$disk` alert (` · NNu`) so the model is cut before the disk alert
-    // is dropped. If the model does not fit whole, tail-cut it; if there's
-    // essentially no room (spare <= 1), clear it. The `%` itself is never touched.
-    let disk_reserve = disk.map_or(0, |d| SEP_W + width(d));
+    // $model — line 1, after the workspace and the reserved `%`. Spare room is
+    // what's left of line1_usable after the (bold) workspace and the
+    // (width("NN%") + 1) reserve for the separator before it. The workspace is
+    // never cut for the model — the model is tail-cut, or cleared when there is
+    // essentially no room (spare <= 1). The `%` itself is never touched. `$disk`
+    // is on its own line, so it never enters this budget.
     if let Some(m) = model {
         let reserve = pct.map_or(0, |p| width(&format!("{p}%")) + 1);
         let spare = layout
             .line1_usable
             .saturating_sub(width(workspace))
-            .saturating_sub(reserve)
-            .saturating_sub(disk_reserve);
+            .saturating_sub(reserve);
         if spare > 1 {
             rt.model = if width(m) > spare {
                 truncate(m, spare)
@@ -148,12 +147,10 @@ pub fn pack(
         // else: spare <= 1 → cleared (default empty).
     }
 
-    // $disk — line 1, after the model. Pre-gated and pre-formatted by the
-    // caller (only ever present above the threshold, so it appears rarely, as an
-    // alert). It is short and higher priority than the model: room for it was
-    // reserved out of the model's budget above (so the model is cut/cleared
-    // first), and it is always shown when present. On a pathologically narrow
-    // line herdr's own overflow handling is the final backstop.
+    // $disk — its own line (never line 1), pre-gated and pre-formatted by the
+    // caller (only ever present above the threshold, so the line appears rarely,
+    // as an alert). Short and on a line of its own, so it needs no truncation and
+    // never squeezes the workspace or the model.
     if let Some(d) = disk {
         rt.disk = d.to_string();
     }
@@ -359,10 +356,10 @@ mod tests {
         assert_eq!(rt.model, "");
     }
 
-    // ── $disk (line 1, after model) ────────────────────────────────────────
+    // ── $disk (its own line) ───────────────────────────────────────────────
 
     #[test]
-    fn disk_shows_after_model_on_line1() {
+    fn disk_set_on_its_own_token() {
         let rt = pk_disk("study", Some("opus"), Some(12), Some("1.2G"));
         assert_eq!(rt.model, "opus");
         assert_eq!(rt.ctx_ok, "12%");
@@ -376,15 +373,15 @@ mod tests {
     }
 
     #[test]
-    fn disk_alert_kept_and_model_yields_under_width_pressure() {
-        // The model's budget is squeezed by the reserved disk room, so it is cut
-        // or cleared, but the "1.2G" alert and the % both survive.
+    fn disk_on_its_own_line_does_not_squeeze_the_model() {
+        // Disk has its own line now, so a present disk does NOT cut the model:
+        // the model, the % and the disk all survive whole.
         let rt = pk_disk("payments", Some("sonnet"), Some(60), Some("1.2G"));
-        assert_eq!(rt.disk, "1.2G", "the disk alert survives");
-        assert_eq!(rt.ctx_warn, "60%", "the % is never touched");
-        assert!(
-            width(&rt.model) < width("sonnet"),
-            "the model yields (cut or cleared) to reserve room for the alert"
+        assert_eq!(rt.disk, "1.2G");
+        assert_eq!(rt.ctx_warn, "60%");
+        assert_eq!(
+            rt.model, "sonnet",
+            "the model is unaffected by the disk token"
         );
     }
 
