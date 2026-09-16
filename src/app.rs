@@ -517,10 +517,14 @@ pub fn state_dir() -> Option<PathBuf> {
     cache::dir()
 }
 
-/// Apply a set of plans through the client.
+/// Apply a set of plans through the client. Resilient per pane: a single pane's
+/// failing report is logged and skipped, never aborting the rest — one bad
+/// report must not blank every pane after it in the sweep.
 pub fn apply(client: &dyn HerdrClient, plans: &[ReportPlan]) -> io::Result<()> {
     for p in plans {
-        client.report_metadata(&p.pane_id, &p.set, &p.clear, p.seq)?;
+        if let Err(e) = client.report_metadata(&p.pane_id, &p.set, &p.clear, p.seq) {
+            eprintln!("agents-info: report for pane {} failed: {e}", p.pane_id);
+        }
     }
     Ok(())
 }
