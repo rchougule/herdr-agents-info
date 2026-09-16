@@ -60,16 +60,18 @@ claude = [
     { token = "$ctx_ok",    fg = "#a6e3a1", bold = true },
     { token = "$ctx_warn",  fg = "#f9e2af", bold = true },
     { token = "$ctx_hot",   fg = "#f38ba8", bold = true },
-    { token = "$model",     dim = true }],
+    { token = "$model",     dim = true },
+    { token = "$disk",      fg = "#f9e2af" }],
   [{ token = "$tab",  dim = false }, { token = "$d2", dim = true }],
   [{ token = "$pane", dim = false }, { token = "$d3", dim = true }],
 ]
 ```
 
-Each field has one fixed home: line 1 is metadata (workspace · context % · model),
+Each field has one fixed home: line 1 is metadata (workspace · context % · model · disk),
 lines 2–3 are identity (tab, pane, and a derived distinguisher `$d2`/`$d3`). Only one
 of `$ctx_ok`/`$ctx_warn`/`$ctx_hot` is ever set, so exactly one color shows. Tokens the
-plugin does not set render as nothing, so rows collapse gracefully.
+plugin does not set render as nothing, so rows collapse gracefully — `$disk` in particular
+only appears when a session is heavy (see [Disk footprint](#disk-footprint)).
 
 The full rules live in [`docs/naming-framing.md`](docs/naming-framing.md) (what shows,
 when) and [`docs/layout-design.md`](docs/layout-design.md) (where it lands).
@@ -100,6 +102,33 @@ So on a **light** terminal the three lines become:
 
 **Any other theme:** keep the meaning — `$ctx_ok` a green, `$ctx_warn` an amber, `$ctx_hot`
 a red, each with enough contrast against your background — and plug in that theme's hexes.
+
+## Disk footprint
+
+The `$disk` token flags sessions that have grown heavy on disk — throwaway worktrees, each
+carrying its own `node_modules` / `target`, are the usual culprit. It shows a human-readable
+size (`1.2G`) **only** when a pane is at or above the threshold, so it stays invisible until
+it is worth acting on. Add it to line 1 of the recipe (already included above).
+
+```toml
+[disk]
+enabled     = true          # master switch
+measure     = "cwd"         # cwd (worktree, default) | transcript | project_dir
+warn_mb     = 500           # only show at or above this many MB
+refresh_secs = 1800         # re-measure a worktree at most this often (TTL)
+timeout_ms  = 15000         # give up on a single tree walk after this long
+```
+
+- **`cwd`** measures the pane's working directory (the worktree) — where the GB actually
+  live. It is a tree walk, so it runs only on the startup/refresh sweep, off the critical
+  path (fast tokens never wait on it), TTL-cached, and parallel across panes with a per-tree
+  timeout. `enrich` events never measure — they read the cached size.
+- **`transcript`** / **`project_dir`** are cheap (one or a few `stat`s) but only ever a few
+  MB, so with the default threshold they rarely fire; use them if you only care about
+  transcript bloat.
+
+Set `enabled = false` to turn the whole thing off. Run `herdr server reload-config` after
+editing.
 
 ## Known limitations
 
