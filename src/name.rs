@@ -52,7 +52,9 @@ pub struct DisplayRow {
 }
 
 impl DisplayRow {
-    /// The typed identity items in ladder order (`[tab?, pane?]`), for the packer.
+    /// The typed identity items in ladder order (`[tab?, pane?]`). A test-only
+    /// view — the packer reads `tab`/`pane` directly.
+    #[cfg(test)]
     pub fn typed(&self) -> Vec<&str> {
         let mut v = Vec::new();
         if let Some(t) = &self.tab {

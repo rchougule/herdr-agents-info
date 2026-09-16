@@ -199,8 +199,8 @@ fn run_doctor(client: &dyn HerdrClient, cfg: &Config) -> ExitCode {
         Some(true) => println!("  herdr-agent-state.sh: installed"),
         Some(false) => println!(
             "  herdr-agent-state.sh: NOT installed \
-             (session id -> newest-jsonl fallback; may pick the wrong session \
-             when two Claude sessions share a cwd — see PLAN §9 risk #4)"
+             (no session id -> newest-jsonl fallback, which can pick the wrong \
+             session when two Claude sessions share a cwd)"
         ),
         None => println!("  herdr-agent-state.sh: unknown (no $HOME, or ~/.claude/settings.json is missing/unreadable)"),
     }
@@ -240,7 +240,7 @@ fn run_doctor(client: &dyn HerdrClient, cfg: &Config) -> ExitCode {
                     "    session_id={} {}",
                     uuid.unwrap_or("(none)"),
                     if uuid.is_none() {
-                        "-> newest-jsonl fallback (may pick wrong session; see PLAN risk #4)"
+                        "-> newest-jsonl fallback (may pick the wrong session)"
                     } else {
                         ""
                     }

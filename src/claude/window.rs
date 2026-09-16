@@ -10,20 +10,6 @@ pub enum CtxLevel {
     Hot,
 }
 
-impl CtxLevel {
-    /// The herdr token key (`ctx_ok` / `ctx_warn` / `ctx_hot`).
-    pub fn token(self) -> &'static str {
-        match self {
-            CtxLevel::Ok => "ctx_ok",
-            CtxLevel::Warn => "ctx_warn",
-            CtxLevel::Hot => "ctx_hot",
-        }
-    }
-
-    /// All three keys, for clearing the two that are not active.
-    pub const ALL: [&'static str; 3] = ["ctx_ok", "ctx_warn", "ctx_hot"];
-}
-
 /// Resolve the context window for a model + observed usage (PLAN §5.2):
 ///   1. An explicit `[context_window.by_model]` override always wins.
 ///   2. Otherwise the default (200k), promoted to 1M when `auto_promote_1m` is on

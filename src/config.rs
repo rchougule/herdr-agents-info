@@ -58,12 +58,9 @@ impl LoginMode {
     fn from_str(s: &str) -> Self {
         match s.trim().to_ascii_lowercase().as_str() {
             "always" => LoginMode::Always,
-            // "off", "auto" (P2, not yet triggerable), and anything else → off.
+            // "off", "auto" (reserved, not yet triggerable), and anything else → off.
             _ => LoginMode::Off,
         }
-    }
-    pub fn is_on(self) -> bool {
-        matches!(self, LoginMode::Always)
     }
 }
 
@@ -281,10 +278,8 @@ auto_promote_1m = true
     #[test]
     fn login_always_and_auto() {
         assert_eq!(LoginMode::from_str("always"), LoginMode::Always);
-        assert_eq!(LoginMode::from_str("auto"), LoginMode::Off); // P2, not yet
+        assert_eq!(LoginMode::from_str("auto"), LoginMode::Off); // reserved, not yet
         assert_eq!(LoginMode::from_str("off"), LoginMode::Off);
-        assert!(LoginMode::Always.is_on());
-        assert!(!LoginMode::Off.is_on());
     }
 
     #[test]
