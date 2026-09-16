@@ -62,7 +62,7 @@ claude = [
     { token = "$ctx_hot",   fg = "#f38ba8", bold = true },
     { token = "$model",     dim = true }],
   [{ token = "$tab",  dim = false }, { token = "$d2", dim = true }],
-  [{ token = "$pane", dim = true }, { token = "$d3", dim = true }],
+  [{ token = "$pane", dim = false }, { token = "$d3", dim = true }],
 ]
 ```
 
