@@ -1,7 +1,7 @@
 //! herdr `agents-info` plugin — core library.
 //!
 //! Pure logic + the herdr client boundary. The binary (`src/main.rs`) is a thin
-//! clap wrapper over [`app`]. See `PLAN.md` for the full design.
+//! clap wrapper over [`app`]. See `docs/DESIGN.md` for the design.
 
 pub mod app;
 pub mod cache;
@@ -15,7 +15,7 @@ pub mod name;
 pub mod pack;
 pub mod render;
 
-/// Unix milliseconds — the `--seq` value (PLAN §3.2).
+/// Unix milliseconds — the `--seq` value.
 pub fn now_millis() -> u64 {
     std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)

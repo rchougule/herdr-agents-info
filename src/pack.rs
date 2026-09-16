@@ -1,6 +1,5 @@
-//! Fixed field→slot packing (`docs/layout-design.md` §3, which supersedes
-//! `docs/naming-framing.md` §7.2/§7.4 — see that document's §4 supersedes
-//! table). Every field has exactly one home; there is no packer float.
+//! Fixed field→slot packing (`docs/DESIGN.md`, Placement). Every field has
+//! exactly one home; there is no packer float.
 //!
 //! Nine owned tokens, every one set-or-cleared on every report:
 //!
@@ -33,10 +32,10 @@ use crate::config::LayoutConfig;
 const SEP: &str = " · ";
 const SEP_W: usize = 3;
 
-/// The 9 owned tokens for one Claude row (layout-design §3.1). Empty means
+/// The 9 owned tokens for one Claude row (`docs/DESIGN.md` Placement). Empty means
 /// "cleared". This is what `render::report_plan` turns into a full
 /// set-or-clear report (plus the retired-key clears) and what the per-pane
-/// cache compares for the idempotent skip (§5.2 rule 5 of naming-framing.md).
+/// cache compares for the idempotent skip (`docs/DESIGN.md`, Architecture).
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct RowTokens {
     pub ctx_ok: String,
@@ -70,7 +69,7 @@ fn truncate(s: &str, budget: usize) -> String {
 
 /// Fit one line's identity item (`tab` or `pane`) alongside its derived item
 /// (`d2`/`d3`), keeping the derived item WHOLE and tail-cutting the identity
-/// item to make room (layout-design §3.3: "the one place identity is cut for
+/// item to make room (`docs/DESIGN.md` Placement: "the one place identity is cut for
 /// something other than the line edge"). When there is no derived item, the
 /// identity item is simply truncated to the line budget (the honest tail-cut,
 /// unchanged from before). When the identity item is absent (a thin row's
@@ -90,10 +89,10 @@ fn fit_with_derived(identity: &str, derived: &str, budget: usize) -> (String, St
     (truncate(identity, avail), derived.to_string())
 }
 
-/// Pack a pane's fields into the 9 fixed tokens (layout-design §3.3).
+/// Pack a pane's fields into the 9 fixed tokens (`docs/DESIGN.md` Placement).
 ///
-/// - `tab` — rung 1 (§3 of naming-framing.md), when shown.
-/// - `pane` — rung 2 (`pane_label ?? agent_name`), when shown.
+/// - `tab` — rung 1 (§3), when shown.
+/// - `pane` — rung 2 (`agent_name ?? pane_label`), when shown.
 /// - `derived` — splitters (§4) / hint (§6), in order; joined by ` · ` and
 ///   assigned to `d3` when a pane is present, else `d2`.
 /// - `model` — the short model form (`opus`), when known and enabled. Anchored
@@ -160,7 +159,7 @@ pub fn pack(
     }
 
     // $tab / $pane / $d2 / $d3 — the derived item follows the pane when one
-    // is present, else the tab (layout-design §3.3 assignment rule).
+    // is present, else the tab (`docs/DESIGN.md` Placement assignment rule).
     let derived_joined = derived.join(SEP);
     let budget = layout.other_usable;
 
@@ -245,7 +244,7 @@ mod tests {
         assert_eq!(rt.model, "");
     }
 
-    // ── Fixture 21 replacement + the layout-design §3.4 additions ──────────
+    // ── Fixture 21 replacement + the layout additions ──────────
 
     #[test]
     fn each_field_has_one_token() {

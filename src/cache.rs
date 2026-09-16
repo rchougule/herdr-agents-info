@@ -1,9 +1,9 @@
-//! Per-pane metadata cache (§5.2 rule 3 of `docs/naming-framing.md`).
+//! Per-pane metadata cache (see `docs/DESIGN.md`, Architecture).
 //!
 //! One JSON file per pane at `$HERDR_PLUGIN_STATE_DIR/<pane_id>.json`, holding
 //! the pane's `model` and `ctx%` (written on every transcript read) and the last
-//! emitted [`RowTokens`] (the 8-token map, `docs/layout-design.md` §3.1) for the
-//! idempotent-skip in §5.2 rule 5 of `docs/naming-framing.md`. Sibling rows
+//! emitted [`RowTokens`] (the owned token map, `docs/DESIGN.md` Placement) for the
+//! idempotent skip (`docs/DESIGN.md`, Architecture). Sibling rows
 //! read `model`/`ctx` from here and never re-read a transcript; a cache miss
 //! means that pane has never had a transcript read, so clearing is a no-op.
 //!

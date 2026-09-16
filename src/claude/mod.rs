@@ -1,5 +1,5 @@
 //! Claude Code adapter: transcript tail reader, context-window table, account
-//! reader, and transcript-path resolution (PLAN §5.2 / §5.3).
+//! reader, and transcript-path resolution.
 
 pub mod account;
 pub mod transcript;
@@ -8,7 +8,7 @@ pub mod window;
 use std::path::PathBuf;
 
 /// Slug a cwd the way Claude Code names its `~/.claude/projects/<slug>/` dir:
-/// every `/` becomes `-` (PLAN §5.2; verified on the reference setup).
+/// every `/` becomes `-`.
 pub fn cwd_slug(cwd: &str) -> String {
     cwd.replace('/', "-")
 }
@@ -18,7 +18,7 @@ fn project_dir(home: &std::path::Path, cwd: &str) -> PathBuf {
     home.join(".claude/projects").join(cwd_slug(cwd))
 }
 
-/// Resolve the transcript path for a pane (PLAN §5.2), in order:
+/// Resolve the transcript path for a pane, in order:
 ///   0. `AGENTS_INFO_FIXTURE_DIR` override → `<fixture>/<pane_id>.jsonl`.
 ///   1. When we have the session UUID (herdr reports it via `agent_session`),
 ///      the transcript is `<some project dir>/<uuid>.jsonl`. Try the cwd/
@@ -97,7 +97,7 @@ fn find_uuid_in_projects(root: &std::path::Path, uuid: &str) -> Option<PathBuf> 
 }
 
 /// Whether herdr's own Claude Code integration hook looks installed in
-/// `~/.claude/settings.json` (PLAN §9.4, open question #4: without it,
+/// `~/.claude/settings.json` (without it,
 /// `agent_session` is never populated and pane→transcript mapping falls back
 /// to newest-jsonl, which can pick the wrong session when two Claude
 /// sessions share a cwd). We deliberately do not parse the hooks schema —

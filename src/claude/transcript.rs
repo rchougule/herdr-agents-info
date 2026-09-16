@@ -1,4 +1,4 @@
-//! Claude transcript tail reader (PLAN §5.2).
+//! Claude transcript tail reader.
 //!
 //! Never full-parses a transcript (large sessions can exceed 20 MB). Reads
 //! the last 256 KiB, splits on `\n`, and scans from the end for the first entry
@@ -118,7 +118,7 @@ fn parse_line(line: &[u8]) -> Option<UsageEntry> {
     })
 }
 
-/// Model short form (PLAN §5.2): opus/sonnet/haiku, else the segment after
+/// Model short form: opus/sonnet/haiku, else the segment after
 /// `claude-`, else the raw id — truncated to 8 chars in the fallback.
 pub fn model_short(model_id: &str) -> String {
     let lower = model_id.to_ascii_lowercase();
@@ -247,7 +247,7 @@ mod tests {
         assert!(scan_tail(&bytes, false).is_none());
     }
 
-    // Fixture-file tests (PLAN §8.2). Windows below match the fixture usage totals.
+    // Fixture-file tests. Windows below match the fixture usage totals.
     #[test]
     fn fixture_12pct() {
         assert_eq!(used_pct("ctx_12.jsonl", 200_000).1, "12%");

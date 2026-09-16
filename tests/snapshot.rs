@@ -1,10 +1,9 @@
-//! Full-fleet insta snapshot (layout-design.md §1-A / §3.4, fixture 23 of
-//! `docs/naming-framing.md` §11 as superseded by layout-design.md §4).
+//! Full-fleet insta snapshot of the whole owned-token map for a representative
+//! fleet (see `docs/DESIGN.md`, Placement).
 //!
 //! Drives the real `app::gather` / `app::plans_for_sweep` pipeline through a fake
 //! `HerdrClient` and captures the full 8-owned-token report for every pane in
-//! the layout-design §1-A fleet (§0's 14-row table, the one the mocks in §1
-//! were checked against): `study`, `Vector Search` (tab + pane), five
+//! a representative fleet: `study`, `Vector Search` (tab + pane), five
 //! same-label `dashboard slow` Spaces (rows 3/4 share a tab but differ by
 //! pane, so no splitter; the rest are distinct tabs), `lci fast` (no
 //! transcript), `core` (a composite tab dropped to a thin-row hint) and five
@@ -13,8 +12,7 @@
 //! tab and a pane name.
 //!
 //! The `%` states and models come from synthetic transcripts staged under
-//! `AGENTS_INFO_FIXTURE_DIR`. The fixed field->slot assignment (layout-design
-//! §3.3) — `$ctx_*`/`$model` on line 1, `$tab`/`$d2` on line 2, `$pane`/`$d3`
+//! `AGENTS_INFO_FIXTURE_DIR`. The fixed field->slot assignment (`docs/DESIGN.md`, Placement) — `$ctx_*`/`$model` on line 1, `$tab`/`$d2` on line 2, `$pane`/`$d3`
 //! on line 3 — lands in one reviewable `.snap`, reconciled line-by-line against
 //! the §1-A mock. Re-baseline with `cargo insta review` after an intentional
 //! change.
@@ -98,7 +96,7 @@ fn stage_transcript(fixture_dir: &Path, pane_id: &str, model_id: &str, pct: u64)
 const OPUS: &str = "claude-opus-4-8";
 const FABLE: &str = "claude-fable-1";
 
-/// One pane of the §9 fleet.
+/// One pane of the representative fleet.
 struct Spec {
     id: &'static str,
     ws_id: &'static str,
@@ -116,7 +114,7 @@ fn qa_scenario_token_map_snapshot() {
     let repos = scratch("repos");
     let fixture_dir = scratch("fx");
 
-    // The layout-design.md §0/§1-A 14-row fleet, in a fixed order so the
+    // The representative fleet, in a fixed order so the
     // snapshot is stable. `dir` == workspace label for every pane (via the
     // repo-path convention below) so the cwd basename never acts as an
     // accidental distinguisher; only branch and pane presence do.
@@ -144,7 +142,7 @@ fn qa_scenario_token_map_snapshot() {
             usage: Some((OPUS, 82)),
         },
         // 3/4: dashboard slow — same tab but 4 has a pane, so their identity
-        // keys differ and this is NOT a collision (layout-design §0 note).
+        // keys differ and this is NOT a collision.
         Spec {
             id: "ws3:p1",
             ws_id: "ws3",
@@ -222,7 +220,7 @@ fn qa_scenario_token_map_snapshot() {
             usage: Some((OPUS, 8)),
         },
         // 10/11: experiment, tab "1" — 11 has a pane, so this is NOT a
-        // collision either (layout-design §0 note).
+        // collision either.
         Spec {
             id: "wsA:p1",
             ws_id: "wsA",

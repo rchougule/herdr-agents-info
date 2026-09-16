@@ -1,6 +1,6 @@
 # QA loop
 
-This is the visual QA loop from `PLAN.md` §6: build the plugin, link it
+This is the visual QA loop: build the plugin, link it
 into a real herdr session, recreate the collision pain with scripted fixture
 data (no tokens burned, no real Claude runs), screenshot the sidebar across
 the variant matrix, and judge it.
@@ -12,7 +12,7 @@ cargo build --release
 herdr plugin link "$PWD"
 ```
 
-`plugin link` does not run build commands (PLAN §8.4) — always `cargo build
+`plugin link` does not run build commands — always `cargo build
 --release` first, and again after every code change.
 
 ## 2. Point the plugin at fixture transcripts, then (re)start herdr
@@ -34,7 +34,7 @@ different shell — it defaults to this exact path already.
 ## 3. Apply the sidebar recipe
 
 Copy the whole `[ui.sidebar.agents.rows_by_agent]` block from the top-level
-[`README.md`](../README.md#config-recipe) (PLAN §2.1) into
+[`README.md`](../README.md#config-recipe) into
 `~/.config/herdr/config.toml`, replacing the existing one. Restart herdr (or
 use live handoff) to pick it up.
 
@@ -93,7 +93,7 @@ needs.
 
 ## 6. Grade and iterate
 
-Use the PLAN §6.7 checklist against the shots. Tune caps / the abbreviation
+Use the QA checklist against the shots. Tune caps / the abbreviation
 table / thresholds / colors in `src/name.rs`, `src/claude/window.rs`, and
 `config.example.toml`; re-run `cargo build --release`, re-shoot. `cargo test`
 (including `tests/snapshot.rs`) should stay green through this — a change to
@@ -102,7 +102,7 @@ diff, not a behavior change nobody looked at.
 
 ## 7. Curate
 
-Send the before/after pair and the A/B pair (PLAN §6.5–6.6) to a human for
+Send the before/after pair and the A/B pair to a human for
 the layout decision. Only curated, explicitly-added shots are committed,
 under `docs/qa/` at the repo root — everything under `qa/out/` is gitignored.
 

@@ -1,4 +1,4 @@
-//! Orchestration (§5 of `docs/naming-framing.md`): gather the full fleet
+//! Orchestration (`docs/DESIGN.md`, Architecture): gather the full fleet
 //! snapshot, compute every Claude pane's row as a pure function of it, and emit
 //! full set-or-clear reports.
 //!
@@ -6,7 +6,7 @@
 //! **every** Claude pane. The event only decides *which* pane's transcript is
 //! re-read (`ReadScope`); every other pane's `model`/`ctx` comes from the
 //! per-pane cache. A report is sent only when a pane's computed `RowTokens`
-//! differ from its cache (the idempotent skip, §5.2 rule 5).
+//! differ from its cache (the idempotent skip; see `docs/DESIGN.md`, Architecture).
 
 use std::io;
 use std::path::{Path, PathBuf};
@@ -30,7 +30,7 @@ pub struct PaneFacts {
     pub fields: PaneFields,
 }
 
-/// Which pane(s) have their transcript re-read this invocation (§5.2 rule 1).
+/// Which pane(s) have their transcript re-read this invocation (Architecture).
 #[derive(Clone, Copy)]
 pub enum ReadScope<'a> {
     /// `sweep`: read every pane's transcript (the startup / handoff refresh).
@@ -146,7 +146,7 @@ struct Meta {
 }
 
 /// A pane's `(model, ctx%)`: freshly read from its transcript when in scope
-/// (§5.2 rule 1), otherwise from the cache. `disk_bytes` always comes from the
+/// (Architecture), otherwise from the cache. `disk_bytes` always comes from the
 /// cache (never measured on a report's critical path).
 fn metadata(agent: &AgentInfo, scope: ReadScope, cfg: &Config, prev: Option<&PaneCache>) -> Meta {
     let (model, pct) = if scope.reads(&agent.pane_id) {
@@ -186,7 +186,7 @@ fn disk_token(bytes: Option<u64>, cfg: &Config) -> Option<String> {
 /// `scope` and metadata-from-cache otherwise, and persist each pane's cache.
 ///
 /// Identity (§3/§4/§6) is computed once over the whole fleet, so it is a pure
-/// function of the snapshot — independent of which pane the event named (§5.1).
+/// function of the snapshot — independent of which pane the event named (Architecture).
 pub fn compute(
     facts: &[PaneFacts],
     cfg: &Config,
@@ -260,7 +260,7 @@ fn login_of<'a>(
 }
 
 /// Turn outcomes into full reports. When `force` is false the idempotent-skip
-/// (§5.2 rule 5) omits panes whose tokens match the cache; when `force` is true
+/// (the idempotent skip) omits panes whose tokens match the cache; when `force` is true
 /// every pane is reported regardless — used by `sweep`, whose whole job is to
 /// re-push the fleet after herdr's own display state has been reset (a restart
 /// or the manual "refresh all rows" action), where the persisted cache no longer
@@ -459,7 +459,7 @@ pub fn plans_for_disk_phase2(
 
 /// `enrich`: re-read only the target pane's transcript; recompute every pane
 /// from the snapshot; report every pane whose tokens changed (so a dissolving
-/// collision un-splits the survivor, §5.2 rule 6).
+/// collision un-splits the survivor).
 pub fn plans_for_enrich(
     facts: &[PaneFacts],
     cfg: &Config,

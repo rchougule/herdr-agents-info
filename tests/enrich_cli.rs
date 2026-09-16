@@ -1,4 +1,4 @@
-//! Fake-herdr integration test (PLAN §8.2).
+//! Fake-herdr integration test.
 //!
 //! A shell shim stands in for the `herdr` binary via `$HERDR_BIN_PATH`: it
 //! replays canned `agent/workspace/tab/pane list` JSON and records every
@@ -95,7 +95,7 @@ fn enrich_reports_exact_argv_for_target_pane() {
         .position(|a| *a == "--seq")
         .expect("argv must contain --seq");
     let head = &args[..seq_pos];
-    // Fixed field->slot token contract (layout-design §3.1): every report sets
+    // Fixed field->slot token contract (`docs/DESIGN.md` Placement): every report sets
     // or clears all 9 owned tokens plus the 7 retired class-per-line keys
     // (belt-and-braces, §3.4). Here workspace=dashboard, the tab echoes it
     // (dropped), there is no cwd/branch/pane name so the row is thin with no

@@ -1,7 +1,7 @@
 //! `agents-info` — clap CLI over the core library. Three modes:
 //!   `sweep`   — full re-report of every Claude pane (startup / handoff).
 //!   `enrich`  — re-report the event's target pane (+ its collision-group siblings).
-//!   `doctor`  — print transcript-mapping and hook diagnostics (PLAN §9.4).
+//!   `doctor`  — print transcript-mapping and hook diagnostics.
 
 use std::process::ExitCode;
 
@@ -123,7 +123,7 @@ fn run_enrich(client: &dyn HerdrClient, cfg: &Config) -> std::io::Result<()> {
 }
 
 /// Resolve the enrich target: `HERDR_PLUGIN_EVENT_JSON` → `data.pane_id` /
-/// `data.pane.pane_id`, falling back to `$HERDR_PANE_ID` (PLAN §4.2).
+/// `data.pane.pane_id`, falling back to `$HERDR_PANE_ID`.
 fn resolve_target_pane() -> Option<String> {
     if let Ok(json) = std::env::var("HERDR_PLUGIN_EVENT_JSON") {
         if let Ok(env) = EventEnvelope::parse(&json) {
@@ -138,7 +138,7 @@ fn resolve_target_pane() -> Option<String> {
 }
 
 /// `doctor`: print a human-readable diagnostic of transcript mapping and hook
-/// wiring (PLAN §9.4). Read-only; never reports metadata.
+/// wiring. Read-only; never reports metadata.
 fn run_doctor(client: &dyn HerdrClient, cfg: &Config) -> ExitCode {
     println!("agents-info doctor");
     println!("==================");
@@ -190,7 +190,7 @@ fn run_doctor(client: &dyn HerdrClient, cfg: &Config) -> ExitCode {
     println!("  email={}", acct.email.as_deref().unwrap_or("(none)"));
     println!("  org={}", acct.org.as_deref().unwrap_or("(none)"));
 
-    // herdr's own Claude Code integration hook (PLAN §9.4, risk #4): without
+    // herdr's own Claude Code integration hook: without
     // it, `agent_session` is never populated and transcript mapping falls
     // back to newest-jsonl, which can pick the wrong session when two Claude
     // sessions share a cwd.

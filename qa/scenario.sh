@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# qa/scenario.sh — recreate the real pain (PLAN §6.1) against a *live* herdr
+# qa/scenario.sh — recreate the real pain against a *live* herdr
 # server, using the herdr CLI only. Deterministic and token-free: every pane
 # is registered as a "claude" agent via `pane report-agent` (a custom-hook
 # report, not a real `claude` process), and its context/model state comes
@@ -7,7 +7,7 @@
 # `AGENTS_INFO_FIXTURE_DIR` — no network call, no real Claude session, no
 # tokens burned.
 #
-# Fleet (the PLAN §5.1 worked example, plus the §6.1 state variants):
+# Fleet (a worked example, plus state variants):
 #   w1  dashboard / auth-mw    ctx  12%  opus   idle
 #   w2  dashboard / billing    ctx  44%  opus   idle
 #   w3  dashboard / main       (no transcript yet — fresh start)   idle

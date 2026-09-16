@@ -86,7 +86,7 @@ pub struct WorkspaceInfo {
 }
 
 /// The `EventEnvelope` (`events.rs:362`) as delivered in `HERDR_PLUGIN_EVENT_JSON`.
-/// We deliberately keep `event` as a raw string and read only `data.*` (PLAN §4.2,
+/// We deliberately keep `event` as a raw string and read only `data.*` (
 /// open question #6: the serialized form of `event` is not depended upon).
 #[derive(Debug, Clone, Deserialize)]
 pub struct EventEnvelope {
@@ -111,7 +111,7 @@ pub struct EventData {
 
 impl EventData {
     /// Resolve the target pane id: `data.pane_id ?? data.pane.pane_id` (the
-    /// `$HERDR_PANE_ID` fallback is applied by the caller). PLAN §4.2.
+    /// `$HERDR_PANE_ID` fallback is applied by the caller).
     pub fn target_pane_id(&self) -> Option<String> {
         self.pane_id
             .clone()

@@ -20,7 +20,7 @@ auto_promote_1m = true   # if observed usage exceeds `default`, treat window as 
 # "claude-opus-4-8" = 1000000
 
 [layout]
-# Fixed field->slot layout budgets (layout-design.md §3). herdr never tells the
+# Fixed field->slot layout budgets (`docs/DESIGN.md` Placement). herdr never tells the
 # plugin the live sidebar width, so the packer assumes one and derives per-line
 # budgets from it. If your sidebar is wider/narrower than the 26-column default,
 # retune `assumed_width` here — no rebuild needed.

@@ -16,7 +16,7 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  # Toolchain pinned to 1.96.1 (matching herdr's own toolchain per PLAN §8.3),
+  # Toolchain pinned to 1.96.1 (matching herdr's own toolchain),
   # kept in sync with rust-toolchain.toml. dtolnay/rust-toolchain has no
   # `toolchain-file` input, so the channel + components are passed explicitly.
   fmt:
@@ -60,10 +60,10 @@ jobs:
           key: ${{ matrix.os }}
       - run: cargo test --all-targets
 
-  # Tag-triggered release build (PLAN §8.3 "Release builds on tag"). Builds
+  # Tag-triggered release build. Builds
   # the binary for both platforms and uploads it as a workflow artifact; this
   # plugin is distributed via `herdr plugin install` building from source
-  # (PLAN §8.4), so these artifacts are a convenience for manual distribution
+  #, so these artifacts are a convenience for manual distribution
   # / sanity-checking a tag, not an automatic GitHub Release publish step.
   release-build:
     name: release-build (${{ matrix.os }})

@@ -1,4 +1,4 @@
-//! Plugin configuration (PLAN Appendix B). Read from
+//! Plugin configuration. Read from
 //! `$HERDR_PLUGIN_CONFIG_DIR/config.toml`; every field defaults so a missing or
 //! partial file is fine.
 
@@ -64,7 +64,7 @@ impl LoginMode {
     }
 }
 
-/// Assumed-width layout knobs for the class-per-line packer (`src/pack.rs`, §7).
+/// Assumed-width layout knobs for the packer (`src/pack.rs`; see `docs/DESIGN.md`, Placement).
 ///
 /// herdr never tells the plugin the live sidebar width, so the packer works off
 /// an *assumed* width (default 26). From it two usable budgets are derived: line

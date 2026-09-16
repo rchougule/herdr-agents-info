@@ -1,5 +1,5 @@
 //! `HerdrClient` trait + a `CliClient` that shells out to `$HERDR_BIN_PATH`
-//! (fallback `herdr`) and parses the JSON responses (PLAN §3.2/§3.3). The trait
+//! (fallback `herdr`) and parses the JSON responses. The trait
 //! exists so tests can inject a fake.
 
 use std::io::{self, ErrorKind};
@@ -9,7 +9,7 @@ use serde::de::DeserializeOwned;
 
 use crate::model::{AgentInfo, PaneInfo, TabInfo, WorkspaceInfo};
 
-/// The fixed `--source` string for every report (PLAN §3.2). One source slot.
+/// The fixed `--source` string for every report. One source slot.
 pub const SOURCE: &str = "plugin:rchougule.agents-info";
 
 /// The set of herdr reads/reports the plugin needs. Kept minimal and injectable.
@@ -143,7 +143,7 @@ mod tests {
 
     #[test]
     fn argv_matches_spec_example() {
-        // PLAN §3.2 worked example.
+        // Worked example.
         let set = vec![
             ("name".to_string(), "auth-mw".to_string()),
             ("sub".to_string(), "dashboard".to_string()),

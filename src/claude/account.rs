@@ -1,4 +1,4 @@
-//! `~/.claude.json` reader for the optional `login` / `org` tokens (PLAN §5.3).
+//! `~/.claude.json` reader for the optional `login` / `org` tokens.
 //! Built but gated behind `[tokens] login` (default off).
 
 use std::path::PathBuf;

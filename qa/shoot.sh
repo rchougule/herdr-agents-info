@@ -58,7 +58,7 @@ Usage: qa/shoot.sh --variant NAME (--region X,Y,W,H | --app APP_NAME) [--out DIR
        qa/shoot.sh --list
 
   --variant NAME   Shot label; saved to qa/out/NAME.png. Suggested names
-                   (PLAN §6.3 matrix) are listed by --list.
+                   are listed by --list.
   --region X,Y,W,H Explicit screen region in points (screencapture -R).
   --app APP_NAME   Capture APP_NAME's frontmost window by CGWindowID
                    (screencapture -l). Tested with "Terminal" and "iTerm2".

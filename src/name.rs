@@ -1,6 +1,6 @@
 //! Identity ladder (§3), fleet collision splitter (§4), thin-row hint (§6) and
-//! the `norm` normalisation (§2) from `docs/naming-framing.md` — the canonical
-//! spec this module implements. When code and doc disagree, the doc wins.
+//! the `norm` normalisation (§2). The canonical rules live in `docs/DESIGN.md`
+//! (its §2–§6 line up with this module).
 //!
 //! A Claude row's *displayed* content is a pure function of the whole fleet
 //! snapshot: identity is computed per pane (§3), then the collision splitter and
@@ -12,7 +12,7 @@ use std::collections::HashSet;
 /// The herdr token separator (§2): space, middle dot, space. herdr and its
 /// plugins compose tab / pane titles with it; users never type it. A label
 /// containing it is plugin-composed status, not identity, and is treated as
-/// **absent** (§2, §8e).
+/// **absent** (§2).
 pub const SEP: &str = " · ";
 
 /// Per-pane raw inputs. All strings are raw; `norm` (§2) is applied internally
@@ -201,7 +201,7 @@ fn pane_item(p: &PaneFields, workspace: &str, tab: Option<&str>) -> Option<(Rung
 // ── the fleet computation (§3 → §4 → §6) ──────────────────────────────────────
 
 /// Compute every Claude pane's display row over the whole snapshot. This is the
-/// only sibling-aware step; it is a pure function of `panes` (§5).
+/// only sibling-aware step; it is a pure function of `panes` (see Architecture).
 pub fn compute_rows(panes: &[PaneFields]) -> Vec<DisplayRow> {
     let mut rows: Vec<DisplayRow> = panes
         .iter()
@@ -399,7 +399,7 @@ fn thin_hint(p: &PaneFields, ws: &str) -> Option<String> {
             return Some(b.clone());
         }
     }
-    // 4. nothing (never a pane id — §8g)
+    // 4. nothing (never a pane id — §6)
     None
 }
 

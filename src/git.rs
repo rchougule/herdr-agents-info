@@ -1,4 +1,4 @@
-//! Minimal, worktree-aware git branch reader (PLAN §5.1, D1). Reads `.git/HEAD`
+//! Minimal, worktree-aware git branch reader. Reads `.git/HEAD`
 //! directly — no `git` subprocess — and resolves the `.git` *file* form used by
 //! linked worktrees. Returns `None` for a detached HEAD (the transcript
 //! `gitBranch` field is the caller's fallback).

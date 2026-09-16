@@ -20,8 +20,8 @@ For each Claude pane it pushes display-only tokens:
 - the **model** (`opus` / `fable` / `sonnet` / …);
 - a color-coded **context %** — green under 50, amber 50–79, red at 80+.
 
-Everything is read fresh from each session's transcript. herdr itself is never modified,
-there is no daemon, and non-Claude panes keep herdr's default layout.
+Values come from each session's transcript (cached per pane between events). herdr itself is
+never modified, there is no daemon, and non-Claude panes keep herdr's default layout.
 
 ## Install
 
@@ -75,8 +75,7 @@ of `$ctx_ok`/`$ctx_warn`/`$ctx_hot` is ever set, so exactly one color shows. Tok
 plugin does not set render as nothing, so rows collapse gracefully — `$disk` in particular
 only appears when a session is heavy (see [Disk footprint](#disk-footprint)).
 
-The full rules live in [`docs/naming-framing.md`](docs/naming-framing.md) (what shows,
-when) and [`docs/layout-design.md`](docs/layout-design.md) (where it lands).
+The full rules live in [`docs/DESIGN.md`](docs/DESIGN.md).
 
 ### Light and dark themes
 
@@ -163,7 +162,7 @@ Config edits need `herdr server reload-config` (or a restart) to take effect.
 - **Claude Code only for now.** Codex / Cursor panes keep herdr's default layout.
 
 See [`config.example.toml`](config.example.toml) for every tunable and
-[PLAN.md](PLAN.md) for the full design.
+[`docs/DESIGN.md`](docs/DESIGN.md) for the design.
 
 ## License
 

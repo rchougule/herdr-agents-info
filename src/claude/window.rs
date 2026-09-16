@@ -1,4 +1,4 @@
-//! Context-window table + threshold selection (PLAN §5.2).
+//! Context-window table + threshold selection.
 
 use crate::config::Config;
 
@@ -10,7 +10,7 @@ pub enum CtxLevel {
     Hot,
 }
 
-/// Resolve the context window for a model + observed usage (PLAN §5.2):
+/// Resolve the context window for a model + observed usage:
 ///   1. An explicit `[context_window.by_model]` override always wins.
 ///   2. Otherwise the default (200k), promoted to 1M when `auto_promote_1m` is on
 ///      and observed usage already exceeds the default (a 200k window is then

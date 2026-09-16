@@ -1,8 +1,8 @@
-//! `RowTokens` → `ReportPlan` (§5.2 rule 2 of `docs/naming-framing.md`).
+//! `RowTokens` → `ReportPlan` (`docs/DESIGN.md`, Architecture).
 //!
 //! Full reports only: every report a pane receives sets or clears **all 9**
 //! owned tokens (`$ctx_ok/warn/hot $model $disk $tab $d2 $pane $d3`,
-//! `docs/layout-design.md` §3.1). There is no partial "name-only" report and
+//! `docs/DESIGN.md` Placement). There is no partial "name-only" report and
 //! no optional "skip this field" state — a subset report is a bug.
 //!
 //! Every report also clears the **retired** class-per-line keys
@@ -19,7 +19,7 @@ use serde::Serialize;
 use crate::pack::RowTokens;
 
 /// The exact token patch for one pane. `Serialize` backs the full-fleet insta
-/// snapshot (`tests/snapshot.rs`, §11 fixture 23 of naming-framing.md).
+/// snapshot (`tests/snapshot.rs`, see `tests/snapshot.rs`).
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct ReportPlan {
     pub pane_id: String,
@@ -30,7 +30,7 @@ pub struct ReportPlan {
     pub seq: u64,
 }
 
-/// The 9 owned token keys (layout-design §3.1), in the fixed order every
+/// The 9 owned token keys (`docs/DESIGN.md` Placement), in the fixed order every
 /// report emits them: line 1 (`ctx_*`, `model`, `disk`), then line 2 (`tab`,
 /// `d2`), then line 3 (`pane`, `d3`). Each is either set (non-empty value) or
 /// cleared (empty value) — never omitted.
@@ -48,7 +48,7 @@ fn owned(tokens: &RowTokens) -> [(&'static str, &str); 9] {
     ]
 }
 
-/// The retired class-per-line keys from the old (pre layout-design) packer.
+/// The retired class-per-line keys from the old (pre-redesign) packer.
 /// Always cleared, never set — belt-and-braces against a stale config block.
 const RETIRED: [&str; 7] = ["t1", "t2", "t3", "d1", "mo1", "mo2", "mo3"];
 

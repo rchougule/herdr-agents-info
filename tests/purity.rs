@@ -1,4 +1,4 @@
-//! Purity-contract tests (§5 / §11 fixtures 15–19 of `docs/naming-framing.md`).
+//! Purity-contract tests (`docs/DESIGN.md`, Architecture: the idempotent skip / pure-function-of-snapshot contract).
 //!
 //! These drive the real `app::gather` / `app::compute` / `app::plans_for_*`
 //! pipeline through a fake `HerdrClient`, fixture transcripts staged under
@@ -355,7 +355,7 @@ fn report_is_always_full() {
 
 #[test]
 fn identical_output_skips_report() {
-    // Fixture 18: the idempotent-skip (§5.2 rule 5). An `enrich` on a snapshot
+    // The idempotent-skip (docs/DESIGN.md, Architecture). An `enrich` on a snapshot
     // unchanged since the last run produces zero reports — but a `sweep` always
     // re-pushes every pane, since it is the startup / restart / refresh path
     // where herdr's own display state has been reset (regression: rows stayed
