@@ -9,6 +9,10 @@ plugin that gives every Claude Code row in the Agents sidebar a distinguishing n
 model, and how full its context window is — so a fleet of a dozen agents stops reading as
 five identical `dashboard sl…` rows.
 
+<p align="center">
+  <img src="assets/sidebar.png" width="330" alt="The Agents sidebar with a distinguishing name, model, and context % on every Claude row">
+</p>
+
 Without it, panes that share a workspace collapse into the same truncated label. This plugin
 pushes display-only tokens per pane — a contextual name (branch, directory, or pane name),
 the model (`opus`/`fable`/…), and a color-coded context `%` (green → amber → red as it
