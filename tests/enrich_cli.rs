@@ -6,10 +6,9 @@
 //! binary in `enrich` mode and asserts the exact reported tokens, including the
 //! two cleared `ctx_*` keys and a monotonic `--seq`.
 //!
-//! This is a first, focused end-to-end assertion against the public `render`/CLI
-//! contract. TODO(next subagent, PLAN §8.2): expand into the full fleet matrix
-//! (5×dashboard collision, haiku, no-usage, 1M) and pair with the insta snapshot
-//! of the whole token map for the QA scenario.
+//! This is a focused end-to-end assertion against the public `render`/CLI
+//! contract; the full fleet matrix (collisions, haiku, no-usage, 1M) is covered
+//! by the insta snapshot in `tests/snapshot.rs` and the cases in `tests/purity.rs`.
 
 #![cfg(unix)]
 

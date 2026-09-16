@@ -155,7 +155,7 @@ no argument through which that information could arrive.
 
 ### 5.2 Ruling on collision-dependent distinguishers
 
-The coordinator's question: does a splitter that depends on the sibling set
+The question a splitter raises: does one that depends on the sibling set
 reintroduce sibling coupling and this bug class? **Partly, and we accept it under
 constraints — we do not forbid it.**
 
@@ -284,7 +284,7 @@ Hierarchy is bold > normal > dim and works identically on catppuccin mocha and o
 light theme. Color is spent on exactly one thing, urgency, so a glance that catches
 color always means "context". No identity field ever gets a hue.
 
-Default hexes (catppuccin mocha, the dogfood theme): green `#a6e3a1`, amber `#f9e2af`,
+Default hexes (catppuccin mocha, the default theme): green `#a6e3a1`, amber `#f9e2af`,
 red `#f38ba8`. The README ships a second block for light themes (catppuccin latte:
 `#40a02b` / `#df8e1d` / `#d20f39`). Three hexes are the entire theme surface; QA (PLAN
 §6.7) checks amber legibility on light.

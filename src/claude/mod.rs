@@ -8,7 +8,7 @@ pub mod window;
 use std::path::PathBuf;
 
 /// Slug a cwd the way Claude Code names its `~/.claude/projects/<slug>/` dir:
-/// every `/` becomes `-` (PLAN §5.2; verified on the dogfood machine).
+/// every `/` becomes `-` (PLAN §5.2; verified on the reference setup).
 pub fn cwd_slug(cwd: &str) -> String {
     cwd.replace('/', "-")
 }
@@ -170,8 +170,8 @@ mod tests {
     #[test]
     fn slug_replaces_slashes() {
         assert_eq!(
-            cwd_slug("/home/user/Personal/herdr-agents-info"),
-            "-home-user-Personal-herdr-agents-info"
+            cwd_slug("/home/user/proj/herdr-agents-info"),
+            "-home-user-proj-herdr-agents-info"
         );
     }
 

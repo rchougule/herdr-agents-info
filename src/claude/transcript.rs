@@ -1,6 +1,6 @@
 //! Claude transcript tail reader (PLAN §5.2).
 //!
-//! Never full-parses a transcript (8 of 2,955 local files exceed 20 MB). Reads
+//! Never full-parses a transcript (large sessions can exceed 20 MB). Reads
 //! the last 256 KiB, splits on `\n`, and scans from the end for the first entry
 //! with `type == "assistant"`, `message.usage` present, and `isSidechain != true`.
 //! Grows the window ×4 up to a 16 MiB cap, then gives up.

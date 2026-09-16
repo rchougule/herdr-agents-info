@@ -1,4 +1,4 @@
 [toolchain]
-# Pinned to match herdr's toolchain (see herdr Cargo.toml / dogfood machine).
+# Pinned to match herdr's toolchain (see herdr Cargo.toml / reference setup).
 channel = "1.96.1"
 components = ["rustfmt", "clippy"]

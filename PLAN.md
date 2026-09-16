@@ -1,12 +1,16 @@
 # herdr-agents-info — Plan
 
-Plugin id: `rchougule.agents-info`. Language: Rust (single binary, two modes). Target
-host: herdr 0.8.2 (`/home/user/Personal/herdr/Cargo.toml:3`), the version installed
-on the dogfood machine.
+> **Historical.** This is the original design plan. Parts of the layout design
+> (notably the `name`/`sub` role-swap in §2 and Appendix B config) were later
+> superseded — the shipped behavior is specified in
+> [`docs/naming-framing.md`](docs/naming-framing.md) and
+> [`docs/layout-design.md`](docs/layout-design.md). Kept for design history.
 
-Every API claim below was checked against the herdr source at
-`/home/user/Personal/herdr` on 2026-09-07. References are `path:line`. herdr itself
-is not modified by this project.
+Plugin id: `rchougule.agents-info`. Language: Rust (single binary, two modes). Target
+host: herdr 0.8.2 (`Cargo.toml:3` in the herdr source tree).
+
+Every API claim below was checked against the herdr 0.8.2 source tree on 2026-09-07.
+References are `path:line`. herdr itself is not modified by this project.
 
 ---
 
@@ -116,7 +120,7 @@ Why each detail is the way it is (all verified):
   (`src/ui/sidebar.rs:1120-1127`, `src/ui/sidebar/tokens.rs:144-152`).
 - Token styles are static per config entry; herdr has no value-conditional color.
   Three tokens with three colors is the only way to color by threshold.
-- Colors are catppuccin green/yellow/red (the dogfood theme is `catppuccin`). Theme
+- Colors are catppuccin green/yellow/red (the default theme is `catppuccin`). Theme
   contrast in light mode is a QA item; fixed hex colors are the one theme-dependent
   choice in the recipe, which is why `$name` uses `bold`/`dim` and no `fg`.
 
@@ -335,9 +339,8 @@ Worked example, the real pain (5 × `dashboard`, worktrees on different branches
 ### 5.2 Context window % → exactly one of `ctx_ok` / `ctx_warn` / `ctx_hot`; plus `model`
 
 Transcript location: `~/.claude/projects/<cwd-slug>/<session-id>.jsonl`, where
-`cwd-slug` is the pane cwd with every `/` replaced by `-` (verified on this machine:
-`/home/user/Personal/herdr-agents-info` →
-`-home-user-Personal-herdr-agents-info`; 29 project dirs, 2,955 transcripts).
+`cwd-slug` is the pane cwd with every `/` replaced by `-` (e.g.
+`/home/user/proj/herdr-agents-info` → `-home-user-proj-herdr-agents-info`).
 
 Pane → transcript mapping, in order:
 
@@ -349,7 +352,7 @@ Pane → transcript mapping, in order:
 3. If no directory exists: report nothing for `ctx_*`/`model` (row collapses to the
    name line). Never guess.
 
-Parsing — **tail, do not full-parse**: 8 of the 2,955 local transcripts exceed 20 MB.
+Parsing — **tail, do not full-parse**: large sessions can exceed 20 MB.
 Read the last 256 KiB, split on `\n`, scan lines from the end for the first entry with
 `type == "assistant"`, `message.usage` present, and `isSidechain != true`. If none is
 found, grow the window ×4 up to a 16 MiB cap, then give up. Lines may be partial at the
@@ -388,7 +391,7 @@ Context window: 200,000 for Opus/Sonnet/Haiku by default. The 1M-context variant
 ### 5.3 Login / account → `login`, `org` (default OFF)
 
 Source: `~/.claude.json` → `oauthAccount.emailAddress`, `oauthAccount.organizationName`
-(verified keys present on this machine; values `user@example.com` / `Example Org`).
+(the keys Claude Code writes to that file).
 
 Product decision: for a single-account user this is the same string on every row and
 the governing rule says kill it. v1 ships the reader and the tokens behind
@@ -406,7 +409,7 @@ projection (`socket-api.mdx:413-450`).
 
 ---
 
-## 6. Dogfood and QA loop
+## 6. QA loop
 
 "Does this help?" can only be judged visually. The loop is part of P1's definition of
 done, not an afterthought.
@@ -436,12 +439,12 @@ ships fixture transcripts for 12%, 44%, 91%, `haiku`, and "no usage yet".
 macOS `screencapture`: `screencapture -l "$(GetWindowID <TerminalApp> --list | ...)"`
 for the whole terminal window, or `screencapture -R x,y,w,h qa/out/<variant>.png` for
 the sidebar region. Shots are taken in: expanded and collapsed sidebar, grouped
-(`agent_panel_sort = "spaces"`, the dogfood setting) and flat sort, dark and light
+(`agent_panel_sort = "spaces"`, the reference setting) and flat sort, dark and light
 theme, and at sidebar widths 18 / 26 / 36.
 
 ### 6.4 Grade
 
-A fresh reviewer (a subagent given only the PNGs and the checklist below) fills a
+A fresh reviewer (given only the screenshots and the checklist below) fills a
 scorecard per shot. It must answer: can every row be told apart in one glance? does
 the % pop at 91% and recede at 12%? is any distinguisher truncated into sameness?
 
@@ -547,7 +550,7 @@ macOS and Linux runners with the toolchain pinned in `rust-toolchain.toml` (herd
 
 ### 8.4 Distribution
 
-- Private GitHub repo `rchougule/herdr-agents-info` (human creates the remote).
+- GitHub repo `rchougule/herdr-agents-info`.
 - Dev: `cargo build --release && herdr plugin link "$PWD"`. `plugin link` does not run
   build commands (`plugins.mdx:220-222`), so the README says to build first.
 - Install path once public: `[[build]] command = ["cargo","build","--release"]` runs
@@ -574,7 +577,7 @@ macOS and Linux runners with the toolchain pinned in `rust-toolchain.toml` (herd
 4. **Does `agent_session` carry the Claude session id?** Yes by construction
    (`agent_resume.rs:63-69` + the Claude hook), but only when herdr's Claude
    integration hook is installed and fired `SessionStart` (it is installed on the
-   dogfood machine: `~/.claude/settings.json` calls `herdr-agent-state.sh session`).
+   reference setup: `~/.claude/settings.json` calls `herdr-agent-state.sh session`).
    Panes without it fall back to newest-jsonl, which can pick the wrong session when
    two Claude sessions share a cwd. Surface this in `agents-info doctor`.
 5. **Sidechain entries.** Subagent traffic may appear in the main transcript with

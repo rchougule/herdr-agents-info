@@ -3,7 +3,7 @@
 # defaults to the values shown here, so an empty file behaves identically.
 
 [tokens]
-login = "off"        # off | always   ("auto" is reserved for P2 → treated as off)
+login = "off"        # off | always   ("auto" is reserved for a future release → treated as off)
 model = true         # show the model token ($model)
 
 [thresholds]

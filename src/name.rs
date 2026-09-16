@@ -498,7 +498,7 @@ mod tests {
 
     #[test]
     fn composite_pane_label_dropped() {
-        // Coordinator addendum: a composite pane_label is treated as absent and
+        // A composite pane_label is treated as absent and
         // falls through to agent_name (which is never composite).
         let r = rows(vec![P {
             id: "w1:p1",

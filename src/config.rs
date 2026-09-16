@@ -7,7 +7,7 @@ use std::path::PathBuf;
 
 use serde::Deserialize;
 
-/// Login token mode. `"auto"` is reserved for P2 and treated as `Off` in v1.
+/// Login token mode. `"auto"` is reserved for a future release and treated as `Off` for now.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum LoginMode {
     #[default]

@@ -1,6 +1,6 @@
 # QA loop
 
-This is the visual dogfood loop from `PLAN.md` §6: build the plugin, link it
+This is the visual QA loop from `PLAN.md` §6: build the plugin, link it
 into a real herdr session, recreate the collision pain with scripted fixture
 data (no tokens burned, no real Claude runs), screenshot the sidebar across
 the variant matrix, and judge it.
