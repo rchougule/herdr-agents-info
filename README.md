@@ -1,14 +1,22 @@
 # herdr-agents-info
 
-A [herdr](https://github.com/ogulcancelik/herdr) plugin that makes the Agents sidebar
-glanceable. Today a fleet of twelve agents renders as five rows that all read
-`dashboard sl…`. This plugin pushes display-only tokens per pane so each Claude Code
-row shows a distinguishing name, the model, and how full the context window is.
+[![CI](https://github.com/rchougule/herdr-agents-info/actions/workflows/ci.yml/badge.svg)](https://github.com/rchougule/herdr-agents-info/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+[![herdr ≥ 0.8.2](https://img.shields.io/badge/herdr-%E2%89%A5%200.8.2-8957e5)](https://github.com/herdrdev/herdr)
 
-Status: P1 core built and green (`cargo test`); see [PLAN.md](PLAN.md) for the
-full design and [qa/README.md](qa/README.md) for the dogfood/screenshot loop.
+**Tell your Claude panes apart at a glance.** A [herdr](https://github.com/herdrdev/herdr)
+plugin that gives every Claude Code row in the Agents sidebar a distinguishing name, its
+model, and how full its context window is — so a fleet of a dozen agents stops reading as
+five identical `dashboard sl…` rows.
 
-Scope of v1: Claude Code only. Codex and Cursor are later phases.
+Without it, panes that share a workspace collapse into the same truncated label. This plugin
+pushes display-only tokens per pane — a contextual name (branch, directory, or pane name),
+the model (`opus`/`fable`/…), and a color-coded context `%` (green → amber → red as it
+fills) — computed fresh from each session's transcript. herdr itself is never modified.
+
+Scope of v1: Claude Code only. Codex and Cursor are later phases. See
+[PLAN.md](PLAN.md) for the full design and [qa/README.md](qa/README.md) for the
+dogfood/screenshot loop.
 
 ## How it fits together
 
@@ -169,4 +177,4 @@ rebuild required. See `config.example.toml`.
 
 ## License
 
-TBD (private repository for now).
+[MIT](LICENSE).
