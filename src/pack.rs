@@ -113,7 +113,7 @@ fn fit_with_derived(identity: &str, derived: &str, budget: usize) -> (String, St
 /// - `derived` — splitters (§4) / hint (§6), in order; joined by ` · ` and
 ///   assigned to `d3` when a pane is present, else `d2`.
 /// - `model` — the short model form (`opus`), when known and enabled. On the
-///   metadata line (`disk · model · ctx%`), with its optional icon.
+///   metadata line (`model · ctx% · disk`), with its optional icon.
 /// - `pct` — context percentage; when present, colours `$ctx_ok`/`warn`/`hot`
 ///   by threshold.
 #[allow(clippy::too_many_arguments)]
@@ -131,7 +131,7 @@ pub fn pack(
 ) -> RowTokens {
     let mut rt = RowTokens::default();
 
-    // Metadata line (`disk · model · ctx%`): all short, on their own line, so
+    // Metadata line (`model · ctx% · disk`): all short, on their own line, so
     // none is truncated here — the workspace has line 1 to itself and is never
     // cut for them. Each carries its configured icon when set.
 

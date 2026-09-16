@@ -35,7 +35,7 @@ assumed_width = 26   # assumed sidebar width in columns
 # separator = "─"
 
 [icons]
-# Optional per-field icons on the metadata line (disk · model · context %), so a
+# Optional per-field icons on the metadata line (model · context % · disk), so a
 # glance says what each value is. Any glyph the terminal renders — emoji, Nerd
 # Font, or a plain symbol. Absent/empty = no icon for that field. They sit on
 # their own line, so double-width emoji do not misalign anything.

@@ -87,12 +87,12 @@ position (`src/pack.rs`, `src/render.rs`):
 line 1   workspace(bold)                              ← the leader has this line to itself
 line 2   T:tab(normal) · d2(dim)                      ← (see combine below)
 line 3   P:pane|A:agent(normal) · d3(dim)
-line 4   [icon] disk · [icon] model(dim) · [icon] ctx_ok|ctx_warn|ctx_hot(color)
+line 4   [icon] model(dim) · [icon] ctx_ok|ctx_warn|ctx_hot(color) · [icon] disk
 line 5   sep(dim)                                     ← between-entry rule, when configured
 ```
 
 The workspace is herdr's own bold token on line 1, alone, so it is **never crowded or
-truncated** by metadata. The metadata line (`disk · model · ctx%`) carries an optional
+truncated** by metadata. The metadata line (`model · ctx% · disk`) carries an optional
 per-field icon (`[icons]` in the config). The last line is an optional between-entry rule
 (`[layout] separator`, tiled to the width) so entries are easy to scan without a full blank
 gap. The **10 owned tokens** the plugin fills, always set-or-cleared in this order (herdr

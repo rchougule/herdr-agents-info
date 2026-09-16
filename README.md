@@ -63,11 +63,11 @@ claude = [
   ["state_icon", { token = "workspace", bold = true }],
   [{ token = "$tab",  dim = false }, { token = "$d2", dim = true }],
   [{ token = "$pane", dim = false }, { token = "$d3", dim = true }],
-  [{ token = "$disk",     fg = "#f9e2af" },
-   { token = "$model",    dim = true },
+  [{ token = "$model",    dim = true },
    { token = "$ctx_ok",   fg = "#a6e3a1" },
    { token = "$ctx_warn", fg = "#f9e2af" },
-   { token = "$ctx_hot",  fg = "#f38ba8", bold = true }],
+   { token = "$ctx_hot",  fg = "#f38ba8", bold = true },
+   { token = "$disk",     fg = "#f9e2af" }],
   [{ token = "$sep", dim = true }],
 ]
 ```
@@ -75,7 +75,9 @@ claude = [
 Each field has one fixed home. **Line 1 is the workspace alone** — the primary identity, so
 it is never crowded or truncated. Lines 2–3 are the tab and pane (with a derived
 distinguisher `$d2`/`$d3`); when both fit one line they combine (`T:tab · P:pane`). **Line 4
-is the metadata** — `disk · model · context %`. **Line 5 is `$sep`**, an optional
+is the metadata** — `model · context % · disk`, with `$disk` last so that, being conditional,
+it fills from the back and never shifts the always-present model and context. **Line 5 is
+`$sep`**, an optional
 between-entry rule (see [Separator](#separator)). Only one of `$ctx_ok`/`$ctx_warn`/`$ctx_hot`
 is ever set, so exactly one color shows; tokens the plugin does not set render as nothing, so
 rows collapse gracefully (`$disk` appears only when a session is heavy — see
@@ -116,7 +118,8 @@ a red, each with enough contrast against your background — and plug in that th
 The `$disk` token flags sessions that have grown heavy on disk — throwaway worktrees, each
 carrying its own `node_modules` / `target`, are the usual culprit. It shows a human-readable
 size (`1.2G`) **only** when a pane is at or above the threshold, so it stays invisible until
-it is worth acting on. Add it to line 1 of the recipe (already included above).
+it is worth acting on — and it sits **last** on the metadata line so it fills from the back
+without shifting model/context (already included in the recipe above).
 
 ```toml
 [disk]
@@ -140,7 +143,7 @@ editing.
 
 ## Icons
 
-The metadata line (`disk · model · context %`) can carry a per-field icon so a glance says
+The metadata line (`model · context % · disk`) can carry a per-field icon so a glance says
 what each value is. Set any glyph your terminal renders; absent/empty means no icon.
 
 ```toml
@@ -150,7 +153,7 @@ model   = "◆"
 context = "◔"
 ```
 
-Renders as `▤ 9.6G · ◆ fable · ◔ 44%`.
+Renders as `◆ fable · ◔ 44% · ▤ 9.6G`.
 
 - **Plain unicode symbols** (above) are single-cell and render in any font — small and tidy.
 - **Nerd Font glyphs** (` ` disk, ` ` model, ` ` chart) are small *and* recognizable, if
