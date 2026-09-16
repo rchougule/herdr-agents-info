@@ -42,9 +42,10 @@ pub struct DisplayRow {
     pub pane_id: String,
     /// Rung 0, always present (with a fallback so a row always has a leader).
     pub workspace: String,
-    /// Rung 1: the tab, when shown.
+    /// Rung 1: the tab, when shown, carrying the `T:` type prefix.
     pub tab: Option<String>,
-    /// Rung 2: pane name (`pane_label ?? agent_name`), when shown.
+    /// Rung 2: agent/pane name (`agent_name ?? pane_label`, agent rename wins),
+    /// when shown, carrying its `A:` / `P:` type prefix.
     pub pane: Option<String>,
     /// Derived items appended by §4 (splitters) or §6 (thin-row hint).
     pub derived: Vec<String>,
@@ -150,17 +151,40 @@ fn tab_item(p: &PaneFields, workspace: &str) -> Option<String> {
     Some(t)
 }
 
-/// Rung 2: `pane_label ?? agent_name` (§3). A **composite** `pane_label` is
-/// treated as absent (it is plugin-composed status, not a user rename), so it
-/// falls through to `agent_name`; `agent_name` is never composite. Once a source
-/// is taken it does **not** fall through on redundancy — one slot, one source.
-fn pane_item(p: &PaneFields, workspace: &str, tab: Option<&str>) -> Option<String> {
-    let source = match field_display(&p.pane_label) {
-        Some(pl) if !is_composite(&pl) => Some(pl),
-        // composite pane_label → absent → fall through to the agent name
-        _ => field_display(&p.agent_name),
+/// Which source filled the rung-2 slot, so it can carry the right type prefix
+/// (`A:` agent, `P:` pane).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum Rung2Kind {
+    Agent,
+    Pane,
+}
+
+impl Rung2Kind {
+    fn prefix(self) -> &'static str {
+        match self {
+            Rung2Kind::Agent => "A:",
+            Rung2Kind::Pane => "P:",
+        }
+    }
+}
+
+/// Rung 2: `agent_name ?? pane_label` (§3). An explicit `agent start <name>` /
+/// in-session rename **wins** over a `pane rename` label. A **composite**
+/// `pane_label` is treated as absent (it is plugin-composed status, not a user
+/// rename); `agent_name` is never composite. Once a source is taken it does
+/// **not** fall through on redundancy — one slot, one source. The returned kind
+/// selects the display prefix, applied by the caller after the raw-value
+/// redundancy checks below.
+fn pane_item(p: &PaneFields, workspace: &str, tab: Option<&str>) -> Option<(Rung2Kind, String)> {
+    let (kind, c) = match field_display(&p.agent_name) {
+        // Agent rename wins.
+        Some(a) => (Rung2Kind::Agent, a),
+        // No agent name → fall through to a non-composite pane rename.
+        None => match field_display(&p.pane_label) {
+            Some(pl) if !is_composite(&pl) => (Rung2Kind::Pane, pl),
+            _ => return None,
+        },
     };
-    let c = source?;
     if same(&c, workspace) {
         return None;
     }
@@ -169,7 +193,7 @@ fn pane_item(p: &PaneFields, workspace: &str, tab: Option<&str>) -> Option<Strin
             return None;
         }
     }
-    Some(c)
+    Some((kind, c))
 }
 
 // ── the fleet computation (§3 → §4 → §6) ──────────────────────────────────────
@@ -181,13 +205,15 @@ pub fn compute_rows(panes: &[PaneFields]) -> Vec<DisplayRow> {
         .iter()
         .map(|p| {
             let workspace = leader(p);
-            let tab = tab_item(p, &workspace);
-            let pane = pane_item(p, &workspace, tab.as_deref());
+            // Raw (unprefixed) values drive the ladder's equality/redundancy
+            // checks; the type prefix is applied only for display, after.
+            let tab_raw = tab_item(p, &workspace);
+            let pane_raw = pane_item(p, &workspace, tab_raw.as_deref());
             DisplayRow {
                 pane_id: p.pane_id.clone(),
                 workspace,
-                tab,
-                pane,
+                tab: tab_raw.map(|t| format!("T:{t}")),
+                pane: pane_raw.map(|(kind, v)| format!("{}{}", kind.prefix(), v)),
                 derived: Vec::new(),
             }
         })
@@ -223,13 +249,28 @@ fn partition_key(row: &DisplayRow) -> PartitionKey {
     )
 }
 
-/// The already-shown items on a row (typed + derived), as comparison keys.
+/// Strip a rung type prefix (`T:` / `P:` / `A:`) that display adds, so a derived
+/// candidate (branch/dir, never prefixed) equal to a tab/pane's underlying value
+/// is recognised as already shown. Only one prefix is ever stripped.
+fn strip_type_prefix(s: &str) -> &str {
+    for p in ["T:", "P:", "A:"] {
+        if let Some(rest) = s.strip_prefix(p) {
+            return rest;
+        }
+    }
+    s
+}
+
+/// The already-shown items on a row (typed + derived), as comparison keys. Type
+/// prefixes are stripped from the typed items so a derived splitter/hint equal to
+/// a tab/pane's underlying value is not appended twice (§4).
 fn shown_keys(row: &DisplayRow) -> HashSet<String> {
     row.tab
         .iter()
         .chain(row.pane.iter())
-        .chain(row.derived.iter())
-        .filter_map(|s| norm_key(s))
+        .map(|s| strip_type_prefix(s))
+        .chain(row.derived.iter().map(String::as_str))
+        .filter_map(norm_key)
         .collect()
 }
 
@@ -443,8 +484,8 @@ mod tests {
             ..P::default()
         }
         .build()]);
-        assert_eq!(r[0].pane.as_deref(), Some("backend-cache"));
-        assert!(r[0].typed().contains(&"backend-cache"));
+        assert_eq!(r[0].pane.as_deref(), Some("P:backend-cache"));
+        assert!(r[0].typed().contains(&"P:backend-cache"));
         assert!(r[0].derived.is_empty());
     }
 
@@ -480,8 +521,9 @@ mod tests {
     }
 
     #[test]
-    fn pane_slot_does_not_fall_through() {
-        // Fixture 4: pane_label == tab, agent_name present → neither shown.
+    fn agent_name_wins_and_slot_does_not_fall_through() {
+        // Fixture 4: an agent rename wins over a pane rename. Even when the pane
+        // label would be redundant with the tab, agent_name shows as `A:other`.
         let r = rows(vec![P {
             id: "w1:p1",
             ws: "w",
@@ -491,15 +533,28 @@ mod tests {
             ..P::default()
         }
         .build()]);
-        assert_eq!(r[0].tab.as_deref(), Some("auth"));
+        assert_eq!(r[0].tab.as_deref(), Some("T:auth"));
+        assert_eq!(r[0].pane.as_deref(), Some("A:other"));
+        assert_eq!(r[0].typed(), vec!["T:auth", "A:other"]);
+
+        // One slot, one source: once the agent source is chosen it does not fall
+        // through on redundancy — agent_name == workspace → dropped, and the pane
+        // label is NOT used to fill the slot.
+        let r = rows(vec![P {
+            id: "w1:p1",
+            ws: "dup",
+            tab: Some("auth"),
+            pane_label: Some("keep"),
+            agent_name: Some("dup"),
+            ..P::default()
+        }
+        .build()]);
         assert_eq!(r[0].pane, None);
-        assert_eq!(r[0].typed(), vec!["auth"]);
     }
 
     #[test]
     fn composite_pane_label_dropped() {
-        // A composite pane_label is treated as absent and
-        // falls through to agent_name (which is never composite).
+        // Agent rename wins outright; a composite pane_label is irrelevant here.
         let r = rows(vec![P {
             id: "w1:p1",
             ws: "w",
@@ -509,7 +564,7 @@ mod tests {
             ..P::default()
         }
         .build()]);
-        assert_eq!(r[0].pane.as_deref(), Some("myagent"));
+        assert_eq!(r[0].pane.as_deref(), Some("A:myagent"));
         assert!(!r[0].typed().iter().any(|s| s.contains(SEP)));
 
         // With no agent_name, a composite pane_label leaves the slot empty.
@@ -522,7 +577,7 @@ mod tests {
         }
         .build()]);
         assert_eq!(r[0].pane, None);
-        assert_eq!(r[0].typed(), vec!["t"]);
+        assert_eq!(r[0].typed(), vec!["T:t"]);
     }
 
     // ── Collision (fixtures 5–10) ──────────────────────────────────────────────

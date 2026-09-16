@@ -16,7 +16,7 @@ expression: plans
       ],
       [
         "tab",
-        "flow"
+        "T:flow"
       ]
     ],
     "clear": [
@@ -49,11 +49,11 @@ expression: plans
       ],
       [
         "tab",
-        "1"
+        "T:1"
       ],
       [
         "pane",
-        "vector-search-plan"
+        "P:vector-search-plan"
       ]
     ],
     "clear": [
@@ -85,7 +85,7 @@ expression: plans
       ],
       [
         "tab",
-        "dashboard cache check"
+        "T:dashboard cache che…"
       ]
     ],
     "clear": [
@@ -118,11 +118,11 @@ expression: plans
       ],
       [
         "tab",
-        "dashboard cache check"
+        "T:dashboard cache che…"
       ],
       [
         "pane",
-        "backend-caching-plan"
+        "P:backend-caching-plan"
       ]
     ],
     "clear": [
@@ -154,7 +154,7 @@ expression: plans
       ],
       [
         "tab",
-        "k8s"
+        "T:k8s"
       ]
     ],
     "clear": [
@@ -187,7 +187,7 @@ expression: plans
       ],
       [
         "tab",
-        "last enriched at fixes"
+        "T:last enriched at fi…"
       ]
     ],
     "clear": [
@@ -220,7 +220,7 @@ expression: plans
       ],
       [
         "tab",
-        "postgres analytics"
+        "T:postgres analytics"
       ]
     ],
     "clear": [
@@ -245,7 +245,7 @@ expression: plans
     "set": [
       [
         "tab",
-        "remaining lci elephan…"
+        "T:remaining lci eleph…"
       ]
     ],
     "clear": [
@@ -313,7 +313,7 @@ expression: plans
       ],
       [
         "tab",
-        "1"
+        "T:1"
       ]
     ],
     "clear": [
@@ -346,11 +346,11 @@ expression: plans
       ],
       [
         "tab",
-        "1"
+        "T:1"
       ],
       [
         "pane",
-        "herdr-agent-info-plug…"
+        "P:herdr-agent-info-pl…"
       ]
     ],
     "clear": [
@@ -382,7 +382,7 @@ expression: plans
       ],
       [
         "tab",
-        "2"
+        "T:2"
       ],
       [
         "d2",
@@ -418,7 +418,7 @@ expression: plans
       ],
       [
         "tab",
-        "2"
+        "T:2"
       ],
       [
         "d2",
@@ -454,11 +454,11 @@ expression: plans
       ],
       [
         "tab",
-        "1"
+        "T:1"
       ],
       [
         "pane",
-        "worktree-fix-desktop-…"
+        "P:worktree-fix-deskto…"
       ]
     ],
     "clear": [
